@@ -1,0 +1,124 @@
+// src/pages/Dashboard.jsx
+import RiskBadge from "../components/RiskBadge";
+
+export default function Dashboard() {
+  // Ejemplo de datos de riesgo (simulados)
+  const riskExamples = [
+    { id: 1, name: "Proyecto Alpha", level: "bajo" },
+    { id: 2, name: "Sistema de Pagos", level: "medio" },
+    { id: 3, name: "Base de Datos Principal", level: "alto" },
+    { id: 4, name: "Servidor Crítico", level: "muy_alto" },
+  ];
+
+  return (
+    <div className="w-full">
+      <h2 className="text-xl font-medium mb-4">
+        Bienvenido al Panel Administrativo
+      </h2>
+      
+
+      {/* Sección de ejemplo con RiskBadges */}
+      <div className="bg-white rounded-lg shadow border p-6 mb-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Niveles de Riesgo - Colores Vibrantes</h3>
+        
+        {/* Ejemplos de diferentes niveles con variantes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-emerald-200">
+            <h4 className="font-medium text-gray-900 mb-2">Riesgo Bajo</h4>
+            <div className="space-y-2">
+              <RiskBadge level="bajo" variant="default" />
+              <RiskBadge level="bajo" variant="solid" />
+              <RiskBadge level="bajo" variant="outlined" />
+            </div>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-amber-200">
+            <h4 className="font-medium text-gray-900 mb-2">Riesgo Medio</h4>
+            <div className="space-y-2">
+              <RiskBadge level="medio" variant="default" />
+              <RiskBadge level="medio" variant="solid" />
+              <RiskBadge level="medio" variant="outlined" />
+            </div>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-orange-200">
+            <h4 className="font-medium text-gray-900 mb-2">Riesgo Alto</h4>
+            <div className="space-y-2">
+              <RiskBadge level="alto" variant="default" />
+              <RiskBadge level="alto" variant="solid" />
+              <RiskBadge level="alto" variant="outlined" />
+            </div>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-red-200">
+            <h4 className="font-medium text-gray-900 mb-2">Riesgo Muy Alto</h4>
+            <div className="space-y-2">
+              <RiskBadge level="muy_alto" variant="default" />
+              <RiskBadge level="muy_alto" variant="solid" />
+              <RiskBadge level="muy_alto" variant="outlined" />
+            </div>
+          </div>
+        </div>
+
+        {/* Ejemplos con diferentes tamaños */}
+        <div className="mb-6">
+          <h4 className="font-medium text-gray-900 mb-3">Diferentes Tamaños</h4>
+          <div className="flex flex-wrap items-center gap-3 p-4 bg-gray-50 rounded-lg">
+            <RiskBadge level="medio" size="xs" variant="solid" />
+            <RiskBadge level="medio" size="sm" variant="solid" />
+            <RiskBadge level="medio" size="md" variant="solid" />
+          </div>
+        </div>
+
+        {/* Comparación de variantes */}
+        <div className="mb-6">
+          <h4 className="font-medium text-gray-900 mb-3">Variantes de Estilo</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-emerald-50 p-4 rounded-lg">
+              <h5 className="font-medium text-emerald-800 mb-2">Default (Suave)</h5>
+              <RiskBadge level="alto" variant="default" />
+            </div>
+            <div className="bg-amber-50 p-4 rounded-lg">
+              <h5 className="font-medium text-amber-800 mb-2">Solid (Vibrante)</h5>
+              <RiskBadge level="alto" variant="solid" />
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h5 className="font-medium text-orange-800 mb-2">Outlined (Bordeado)</h5>
+              <RiskBadge level="alto" variant="outlined" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ejemplo en tabla con colores destacados */}
+      <div className="bg-white rounded-lg shadow border overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+          <h3 className="text-lg font-medium text-gray-900">Sistemas con Nivel de Riesgo</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Sistema
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nivel de Riesgo
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {riskExamples.map((system) => (
+                <tr key={system.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {system.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <RiskBadge level={system.level} variant="solid" size="sm" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
