@@ -5,7 +5,10 @@ import { Building2, Plus, Edit, Trash2, RotateCcw, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
-import CustomTable from "../components/CustomTable"; // Importar el nuevo componente
+import CustomTable from "../components/CustomTable";
+import ConfirmModal from "../components/ConfirmModal";
+import { useNotification } from "../hooks/useNotification";
+import { useConfirmModal } from "../hooks/useConfirmModal";
 
 export default function EstablecimientosPage() {
   const { api } = useAuth();
@@ -13,6 +16,17 @@ export default function EstablecimientosPage() {
   const [establecimientos, setEstablecimientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Notificaciones
+  const { showSuccess, showError, withLoading } = useNotification();
+
+  // Modal de confirmación
+  const {
+    isOpen: isConfirmOpen,
+    config: confirmConfig,
+    showConfirm,
+    closeModal: closeConfirmModal,
+  } = useConfirmModal();
 
   // Cargar establecimientos
   const fetchEstablecimientos = async () => {
@@ -23,6 +37,10 @@ export default function EstablecimientosPage() {
     } catch (err) {
       console.error("Error al cargar establecimientos:", err);
       setError("No se pudieron cargar los establecimientos.");
+      showError("Error al cargar establecimientos", {
+        description: "No se pudieron cargar los establecimientos.",
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -32,28 +50,56 @@ export default function EstablecimientosPage() {
     fetchEstablecimientos();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este establecimiento?")) return;
-
-    try {
-      await api.delete(`/establecimientos/${id}`);
-      fetchEstablecimientos();
-    } catch (err) {
-      console.error("Error al eliminar establecimiento:", err);
-      alert("No se pudo eliminar el establecimiento.");
-    }
+  // Eliminar con modal de confirmación
+  const handleDelete = (establecimiento) => {
+    showConfirm({
+      title: "Eliminar Establecimiento",
+      message: `¿Estás seguro de eliminar "${establecimiento.nombre_comercial}"? Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.delete(`/establecimientos/${establecimiento.id}`),
+            {
+              loading: "Eliminando establecimiento...",
+              success: "Establecimiento eliminado correctamente",
+              error: "No se pudo eliminar el establecimiento",
+            }
+          );
+          fetchEstablecimientos();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  const handleRestore = async (id) => {
-    if (!window.confirm("¿Estás seguro de restaurar este establecimiento?")) return;
-
-    try {
-      await api.patch(`/establecimientos/${id}/restore`);
-      fetchEstablecimientos();
-    } catch (err) {
-      console.error("Error al restaurar establecimiento:", err);
-      alert("No se pudo restaurar el establecimiento.");
-    }
+  // Restaurar con modal de confirmación
+  const handleRestore = (establecimiento) => {
+    showConfirm({
+      title: "Restaurar Establecimiento",
+      message: `¿Deseas restaurar "${establecimiento.nombre_comercial}"? Volverá a estar activo en el sistema.`,
+      confirmText: "Sí, restaurar",
+      cancelText: "Cancelar",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.patch(`/establecimientos/${establecimiento.id}/restore`),
+            {
+              loading: "Restaurando establecimiento...",
+              success: "Establecimiento restaurado correctamente",
+              error: "No se pudo restaurar el establecimiento",
+            }
+          );
+          fetchEstablecimientos();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
   const EstablecimientoCard = ({ establecimiento }) => (
@@ -100,14 +146,16 @@ export default function EstablecimientosPage() {
         {establecimiento.estado ? (
           <>
             <button
-              onClick={() => navigate(`/establecimientos/${establecimiento.id}/editar`)}
+              onClick={() =>
+                navigate(`/establecimientos/${establecimiento.id}/editar`)
+              }
               className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-full transition-colors"
               title="Editar"
             >
               <Edit size={16} />
             </button>
             <button
-              onClick={() => handleDelete(establecimiento.id)}
+              onClick={() => handleDelete(establecimiento)}
               className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-full transition-colors"
               title="Eliminar"
             >
@@ -116,7 +164,7 @@ export default function EstablecimientosPage() {
           </>
         ) : (
           <button
-            onClick={() => handleRestore(establecimiento.id)}
+            onClick={() => handleRestore(establecimiento)}
             className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
             title="Restaurar"
           >
@@ -128,100 +176,103 @@ export default function EstablecimientosPage() {
   );
 
   // Definir columnas para la tabla personalizada
-  const columns = useMemo(() => [
-    {
-      header: 'Establecimiento',
-      accessorKey: 'nombre_comercial',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <Building2 className="h-5 w-5 text-gray-400 mr-2" />
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              {row.original.nombre_comercial}
-            </div>
-            <div className="text-sm text-gray-500">
-              {row.original.razon_social}
+  const columns = useMemo(
+    () => [
+      {
+        header: "Establecimiento",
+        accessorKey: "nombre_comercial",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            <Building2 className="h-5 w-5 text-gray-400 mr-2" />
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {row.original.nombre_comercial}
+              </div>
+              <div className="text-sm text-gray-500">
+                {row.original.razon_social}
+              </div>
             </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      header: 'RUC',
-      accessorKey: 'ruc',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-900">
-          {row.original.ruc}
-        </span>
-      ),
-    },
-    {
-      header: 'Propietario',
-      accessorKey: 'propietario',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-900">
-          {row.original.propietario}
-        </span>
-      ),
-    },
-    {
-      header: 'Teléfono',
-      accessorKey: 'telefono',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-900">
-          {row.original.telefono}
-        </span>
-      ),
-    },
-    {
-      header: 'Estado',
-      accessorKey: 'estado',
-      cell: ({ row }) => (
-        <StatusBadge status={row.original.estado} size="sm" />
-      ),
-    },
-    {
-      header: 'Acciones',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <button
-            onClick={() => navigate(`/establecimientos/${row.original.id}`)}
-            className="text-gray-600 hover:text-gray-900 mr-3 p-1"
-            title="Ver detalle"
-          >
-            <Eye size={16} />
-          </button>
-
-          {row.original.estado ? (
-            <>
-              <button
-                onClick={() => navigate(`/establecimientos/${row.original.id}/editar`)}
-                className="text-blue-600 hover:text-blue-900 mr-3 p-1"
-                title="Editar"
-              >
-                <Edit size={16} />
-              </button>
-              <button
-                onClick={() => handleDelete(row.original.id)}
-                className="text-red-600 hover:text-red-900 p-1"
-                title="Eliminar"
-              >
-                <Trash2 size={16} />
-              </button>
-            </>
-          ) : (
+        ),
+      },
+      {
+        header: "RUC",
+        accessorKey: "ruc",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-900">{row.original.ruc}</span>
+        ),
+      },
+      {
+        header: "Propietario",
+        accessorKey: "propietario",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-900">
+            {row.original.propietario}
+          </span>
+        ),
+      },
+      {
+        header: "Teléfono",
+        accessorKey: "telefono",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-900">{row.original.telefono}</span>
+        ),
+      },
+      {
+        header: "Estado",
+        accessorKey: "estado",
+        cell: ({ row }) => (
+          <StatusBadge status={row.original.estado} size="sm" />
+        ),
+      },
+      {
+        header: "Acciones",
+        cell: ({ row }) => (
+          <div className="flex items-center">
             <button
-              onClick={() => handleRestore(row.original.id)}
-              className="text-green-600 hover:text-green-900 p-1"
-              title="Restaurar"
+              onClick={() =>
+                navigate(`/establecimientos/${row.original.id}`)
+              }
+              className="text-gray-600 hover:text-gray-900 mr-3 p-1"
+              title="Ver detalle"
             >
-              <RotateCcw size={16} />
+              <Eye size={16} />
             </button>
-          )}
-        </div>
-      ),
-    },
-  ], []);
+
+            {row.original.estado ? (
+              <>
+                <button
+                  onClick={() =>
+                    navigate(`/establecimientos/${row.original.id}/editar`)
+                  }
+                  className="text-blue-600 hover:text-blue-900 mr-3 p-1"
+                  title="Editar"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(row.original)}
+                  className="text-red-600 hover:text-red-900 p-1"
+                  title="Eliminar"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => handleRestore(row.original)}
+                className="text-green-600 hover:text-green-900 p-1"
+                title="Restaurar"
+              >
+                <RotateCcw size={16} />
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="w-full">
@@ -262,14 +313,26 @@ export default function EstablecimientosPage() {
           </div>
 
           <div className="hidden md:block">
-            <CustomTable 
-              data={establecimientos} 
-              columns={columns} 
+            <CustomTable
+              data={establecimientos}
+              columns={columns}
               searchable={true}
             />
           </div>
         </>
       )}
+
+      {/* Modal de Confirmación */}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
+      />
     </div>
   );
 }

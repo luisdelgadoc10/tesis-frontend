@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Eye,
   X,
-  Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
@@ -24,9 +23,6 @@ export default function ActividadesEconomicasPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState("");
-
-  // Búsqueda
-  const [searchTerm, setSearchTerm] = useState("");
 
   // Modal de edición/creación
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,17 +55,6 @@ export default function ActividadesEconomicasPage() {
   useEffect(() => {
     fetchActividades();
   }, []);
-
-  // Filtrado
-  const filteredActividades = useMemo(() => {
-    if (!searchTerm) return actividades;
-    const term = searchTerm.toLowerCase();
-    return actividades.filter(
-      (act) =>
-        (act.descripcion && act.descripcion.toLowerCase().includes(term)) ||
-        (act.funcion?.nombre && act.funcion.nombre.toLowerCase().includes(term))
-    );
-  }, [actividades, searchTerm]);
 
   // Abrir modal para crear
   const handleCreate = () => {
@@ -364,20 +349,6 @@ export default function ActividadesEconomicasPage() {
         </Button>
       </div>
 
-      {/* 🔍 Barra de búsqueda */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder="Buscar actividad o función..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#24412f] focus:border-transparent"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>
       )}
@@ -390,13 +361,13 @@ export default function ActividadesEconomicasPage() {
         <>
           {/* Vista móvil - Cards */}
           <div className="md:hidden">
-            {filteredActividades.length === 0 ? (
+            {actividades.length === 0 ? (
               <div className="text-center py-10 text-gray-500">
                 No se encontraron actividades económicas.
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredActividades.map((actividad) => (
+                {actividades.map((actividad) => (
                   <ActividadCard key={actividad.id} actividad={actividad} />
                 ))}
               </div>
@@ -406,9 +377,9 @@ export default function ActividadesEconomicasPage() {
           {/* Vista escritorio - Tabla personalizada con CustomTable */}
           <div className="hidden md:block">
             <CustomTable 
-              data={filteredActividades} 
+              data={actividades} 
               columns={columns} 
-              searchable={false} // Ya tenemos nuestra propia barra de búsqueda
+              searchable={true} // Usar el buscador de CustomTable
             />
           </div>
         </>

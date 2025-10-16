@@ -7,6 +7,7 @@ import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
 import LocationPicker from "../components/LocationPicker";
 import Select from "react-select";
+import { useNotification } from "../hooks/useNotification"; // 👈 Importar
 
 // Estilos para react-select
 const customSelectStyles = {
@@ -40,6 +41,9 @@ export default function EstablecimientoDetallePage() {
   const { api } = useAuth();
   const navigate = useNavigate();
 
+  // 👇 Hook de notificaciones
+  const { showSuccess, showError, showLoading, dismissToast, showApiError } = useNotification();
+
   const [establecimiento, setEstablecimiento] = useState(null);
   const [formData, setFormData] = useState({
     nombre_comercial: "",
@@ -59,7 +63,7 @@ export default function EstablecimientoDetallePage() {
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState("");
 
-  // ✅ DETERMINAR EL MODO DE FORMA SIMPLE Y CLARA - CORREGIDO PARA ID UNDEFINED
+  // Determinar el modo
   const isCreateMode = id === "nuevo" || (!id && location.pathname.includes("/nuevo"));
   const isEditMode = !isCreateMode && location.pathname.includes("/editar");
   const isViewMode = !isCreateMode && !isEditMode;
@@ -73,7 +77,7 @@ export default function EstablecimientoDetallePage() {
     isViewMode
   });
 
-  // Cargar actividades económicas (solo si es edición o nuevo)
+  // Cargar actividades económicas
   useEffect(() => {
     if (isCreateMode || isEditMode) {
       const fetchActividades = async () => {
@@ -82,13 +86,17 @@ export default function EstablecimientoDetallePage() {
           setActividadesEconomicas(Array.isArray(data) ? data : data.data || []);
         } catch (err) {
           console.error("Error al cargar actividades:", err);
+          showError("Error al cargar actividades económicas", {
+            description: "No se pudieron cargar las actividades económicas.",
+            duration: 5000,
+          });
         }
       };
       fetchActividades();
     }
   }, [isCreateMode, isEditMode, api]);
 
-  // ✅ CARGAR ESTABLECIMIENTO - LÓGICA COMPLETAMENTE CORREGIDA
+  // Cargar establecimiento
   useEffect(() => {
     console.log("=== useEffect EJECUTÁNDOSE ===");
     console.log("ID recibido:", JSON.stringify(id));
@@ -96,7 +104,7 @@ export default function EstablecimientoDetallePage() {
     console.log("pathname:", location.pathname);
     console.log("isCreateMode calculado:", isCreateMode);
     
-    // ✅ VERIFICACIÓN MÁS ESTRICTA - INCLUYENDO ID UNDEFINED
+    // Verificación para modo creación
     if (!id || id === "nuevo" || id === undefined || id === null || location.pathname.includes("/nuevo")) {
       console.log("🟢 MODO CREACIÓN DETECTADO - Saltando carga");
       setLoading(false);
@@ -104,7 +112,7 @@ export default function EstablecimientoDetallePage() {
       return;
     }
 
-    // ✅ Verificación adicional de que NO es modo creación
+    // Verificación adicional
     if (String(id).toLowerCase() === "nuevo") {
       console.log("🟢 ID 'nuevo' detectado (string) - Saltando carga");
       setLoading(false);
@@ -112,7 +120,6 @@ export default function EstablecimientoDetallePage() {
       return;
     }
 
-    // ✅ Solo para modos vista y edición (IDs numéricos)
     console.log("🔴 Intentando cargar establecimiento para ID:", id);
     
     const fetchEstablecimiento = async () => {
@@ -152,7 +159,12 @@ export default function EstablecimientoDetallePage() {
         }
       } catch (err) {
         console.error("❌ Error al cargar establecimiento:", err);
-        setError(err.message || "No se pudo cargar el establecimiento.");
+        const errorMessage = err.message || "No se pudo cargar el establecimiento.";
+        setError(errorMessage);
+        showError("Error al cargar establecimiento", {
+          description: errorMessage,
+          duration: 5000,
+        });
       } finally {
         setLoading(false);
       }
@@ -169,30 +181,40 @@ export default function EstablecimientoDetallePage() {
     }));
   };
 
+  // 🚀 Handle Submit con notificaciones
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
-    setSaving(true);
+
+    const toastId = showLoading(
+      isCreateMode ? "Creando establecimiento..." : "Actualizando establecimiento..."
+    );
 
     try {
       let response;
       if (isCreateMode) {
         response = await api.post("/establecimientos", formData);
+        showSuccess("Establecimiento creado correctamente", { id: toastId });
         navigate(`/establecimientos`);
       } else {
         response = await api.put(`/establecimientos/${id}`, formData);
+        showSuccess("Establecimiento actualizado correctamente", { id: toastId });
         setEstablecimiento(response.data);
         navigate(`/establecimientos/${id}`);
       }
     } catch (err) {
       console.error("Error al guardar:", err);
+      dismissToast(toastId);
+      
+      // Usar showApiError para manejar errores de validación
+      showApiError(err, isCreateMode ? "Error al crear establecimiento" : "Error al actualizar establecimiento");
+      
+      // También mostrar en el formulario
       if (err.response?.data?.message) {
         setFormError(err.response.data.message);
       } else {
         setFormError("Error al guardar. Intente nuevamente.");
       }
-    } finally {
-      setSaving(false);
     }
   };
 

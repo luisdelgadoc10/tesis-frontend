@@ -5,74 +5,86 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Save, Shield } from "lucide-react";
 import Button from "../components/Button";
 import CustomCheckbox from "../components/CustomCheckbox";
+import { useNotification } from "../hooks/useNotification"; // 👈 Importar
 
 export default function RolFormPage() {
   const { api } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
+  // 👇 Hook de notificaciones
+  const { showSuccess, showError, showLoading, dismissToast, showApiError } =
+    useNotification();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [permisos, setPermisos] = useState([]);
   const [rol, setRol] = useState({
     name: "",
-    permissions: []
+    permissions: [],
   });
 
   // Determinar el modo basado en la ruta
-  const isEditMode = location.pathname.includes('/editar');
-  const isCreateMode = location.pathname.includes('/nuevo');
+  const isEditMode = location.pathname.includes("/editar");
+  const isCreateMode = location.pathname.includes("/nuevo");
   const modo = isEditMode ? "Editar" : "Crear";
 
   // Cargar permisos y rol (si es edición)
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
+
       // Cargar todos los permisos
       const permisosRes = await api.get("/permisos");
-      const permisosDisponibles = Array.isArray(permisosRes.data) 
-        ? permisosRes.data 
+      const permisosDisponibles = Array.isArray(permisosRes.data)
+        ? permisosRes.data
         : permisosRes.data.data || [];
-      
-      setPermisos(permisosDisponibles.filter(p => p.estado === 1)); // Solo activos
-      
+
+      setPermisos(permisosDisponibles.filter((p) => p.estado === 1)); // Solo activos
+
       // Si es edición, cargar el rol
       if (id && isEditMode) {
         const rolRes = await api.get(`/roles/${id}`);
         console.log("Datos del rol cargado:", rolRes.data);
-        
+
         // Extraer los IDs de los permisos del rol
         let permissionsIds = [];
         if (rolRes.data.permissions && Array.isArray(rolRes.data.permissions)) {
-          permissionsIds = rolRes.data.permissions.map(p => p.id);
+          permissionsIds = rolRes.data.permissions.map((p) => p.id);
         }
-        
+
         console.log("IDs de permisos extraídos:", permissionsIds);
-        
+
         setRol({
           name: rolRes.data.name || "",
-          permissions: permissionsIds
+          permissions: permissionsIds,
         });
       } else if (isCreateMode) {
         // En modo creación, marcar "view-dashboard" por defecto
-        const permisoDashboard = permisosDisponibles.find(p => p.name === 'view-dashboard');
+        const permisoDashboard = permisosDisponibles.find(
+          (p) => p.name === "view-dashboard"
+        );
         if (permisoDashboard) {
-          setRol(prev => ({
+          setRol((prev) => ({
             ...prev,
-            permissions: [permisoDashboard.id]
+            permissions: [permisoDashboard.id],
           }));
         } else {
-          setRol(prev => ({
+          setRol((prev) => ({
             ...prev,
-            permissions: []
+            permissions: [],
           }));
         }
       }
     } catch (err) {
       console.error("Error al cargar datos:", err);
-      setError("No se pudieron cargar los datos.");
+      const errorMessage = "No se pudieron cargar los datos.";
+      setError(errorMessage);
+      showError("Error al cargar datos", {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -84,23 +96,23 @@ export default function RolFormPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setRol(prev => ({
+    setRol((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handlePermisoToggle = (permisoId) => {
     // No permitir desmarcar "view-dashboard"
-    const permisoDashboard = permisos.find(p => p.name === 'view-dashboard');
+    const permisoDashboard = permisos.find((p) => p.name === "view-dashboard");
     if (permisoDashboard && permisoId === permisoDashboard.id) {
       return; // No hacer nada si intentan desmarcar view-dashboard
     }
 
-    setRol(prev => {
+    setRol((prev) => {
       const permissionsActuales = [...prev.permissions];
       const index = permissionsActuales.indexOf(permisoId);
-      
+
       if (index > -1) {
         // Remover permiso
         permissionsActuales.splice(index, 1);
@@ -108,52 +120,75 @@ export default function RolFormPage() {
         // Agregar permiso
         permissionsActuales.push(permisoId);
       }
-      
+
       return {
         ...prev,
-        permissions: permissionsActuales
+        permissions: permissionsActuales,
       };
     });
   };
 
+  // 🚀 Handle Submit con notificaciones
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    const toastId = showLoading(
+      isEditMode ? "Actualizando rol..." : "Creando rol..."
+    );
+
     try {
       // El payload debe enviar permissions como array de IDs
       const payload = {
         name: rol.name,
-        permissions: rol.permissions // Array de IDs de permisos
+        permissions: rol.permissions, // Array de IDs de permisos
       };
-      
+
       console.log("Enviando payload al backend:", payload);
-      
+
       if (isEditMode) {
         await api.put(`/roles/${id}`, payload);
+        showSuccess("Rol actualizado correctamente", { id: toastId });
       } else {
         await api.post("/roles", payload);
+        showSuccess("Rol creado correctamente", { id: toastId });
       }
-      
+
       navigate("/roles");
     } catch (err) {
       console.error("Error al guardar rol:", err);
       console.error("Respuesta del servidor:", err.response?.data);
       console.error("Código de error:", err.response?.status);
-      
-      // Mostrar mensaje de error más específico
+
+      dismissToast(toastId);
+
+      // Usar showApiError para manejar errores automáticamente
+      showApiError(
+        err,
+        isEditMode ? "Error al actualizar rol" : "Error al crear rol"
+      );
+
+      // También mostrar en el estado local para la UI
       if (err.response?.status === 422) {
-        setError("Error de validación: " + JSON.stringify(err.response.data.errors || err.response.data));
+        setError(
+          "Error de validación: " +
+            JSON.stringify(err.response.data.errors || err.response.data)
+        );
       } else if (err.response?.status === 500) {
-        setError("Error del servidor: " + (err.response.data.message || "Error interno del servidor"));
+        setError(
+          "Error del servidor: " +
+            (err.response.data.message || "Error interno del servidor")
+        );
       } else {
-        setError("No se pudo guardar el rol. Código: " + err.response?.status);
+        setError(
+          "No se pudo guardar el rol. Código: " + err.response?.status
+        );
       }
     }
   };
 
   // Verificar si un permiso está bloqueado (no editable)
   const isPermisoBloqueado = (permisoId) => {
-    const permisoDashboard = permisos.find(p => p.name === 'view-dashboard');
+    const permisoDashboard = permisos.find((p) => p.name === "view-dashboard");
     return permisoDashboard && permisoId === permisoDashboard.id;
   };
 
@@ -199,9 +234,7 @@ export default function RolFormPage() {
               <ArrowLeft size={18} />
               Volver
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {modo} Rol
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">{modo} Rol</h1>
           </div>
         </div>
 
@@ -232,13 +265,15 @@ export default function RolFormPage() {
                 </label>
                 <div className="border border-gray-200 rounded-md p-4 max-h-96 overflow-y-auto">
                   {permisos.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No hay permisos disponibles.</p>
+                    <p className="text-gray-500 text-center py-4">
+                      No hay permisos disponibles.
+                    </p>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {permisos.map((permiso) => {
                         const isChecked = rol.permissions.includes(permiso.id);
                         const isLocked = isPermisoBloqueado(permiso.id);
-                        
+
                         return (
                           <CustomCheckbox
                             key={permiso.id}
@@ -247,9 +282,9 @@ export default function RolFormPage() {
                             label={permiso.descripcion || permiso.name}
                             disabled={isLocked}
                             className={`p-3 border rounded-lg transition-colors ${
-                              isLocked 
-                                ? 'border-blue-300 bg-blue-50' 
-                                : 'border-gray-200 hover:border-[#24412f]'
+                              isLocked
+                                ? "border-blue-300 bg-blue-50"
+                                : "border-gray-200 hover:border-[#24412f]"
                             }`}
                           />
                         );
@@ -259,7 +294,8 @@ export default function RolFormPage() {
                 </div>
                 {rol.permissions.length > 0 && (
                   <p className="mt-2 text-sm text-blue-600">
-                    * El permiso "Dashboard" está siempre incluido y no se puede desmarcar
+                    * El permiso "Dashboard" está siempre incluido y no se puede
+                    desmarcar
                   </p>
                 )}
               </div>

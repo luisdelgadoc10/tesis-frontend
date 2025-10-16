@@ -1,11 +1,20 @@
 // src/App.jsx
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import PublicCuestionarioPage from "./pages/PublicCuestionarioPage";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized";
+
+//Toasts
+import { Toaster } from "sonner";
 
 // Páginas protegidas
 import Dashboard from "./pages/Dashboard";
@@ -21,10 +30,8 @@ import EstablecimientoDetallePage from "./pages/EstablecimientoDetallePage";
 import SubfuncionesPage from "./pages/SubfuncionesPage";
 import ClasificacionDetallePage from "./pages/ClasificacionDetallePage";
 import MapaRiesgoPage from "./pages/MapaRiesgoPage";
-import SubfuncionDetallePage from "./pages/SubfuncionDetallePage";    
+import SubfuncionDetallePage from "./pages/SubfuncionDetallePage";
 import RolFormPage from "./pages/RolFormPage";
-
-
 
 // Componente interno para proteger rutas (autenticación)
 function ProtectedLayout() {
@@ -48,229 +55,239 @@ function ProtectedLayout() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Ruta pública */}
+    <BrowserRouter>
+      <Toaster 
+        position="top-right"
+        expand={false}
+        richColors
+        closeButton
+        toastOptions={{
+          style: {
+            padding: '16px',
+          },
+          className: 'shadow-lg',
+        }}
+      />
+
+      <Routes>
+        {/* Ruta pública */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/encuesta/:token"
+          element={
+            <PublicRoute>
+              <PublicCuestionarioPage />
+            </PublicRoute>
+          }
+        />
+
+        <Route path="/unauthorized" element={<Unauthorized />} />
+
+        {/* Rutas protegidas */}
+        <Route element={<ProtectedLayout />}>
+          {/* Dashboard (sin permiso específico, solo autenticado) */}
           <Route
-            path="/login"
+            path="/dashboard"
             element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
+              <ProtectedRoute permission="view-dashboard">
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Usuarios */}
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute permission="view-users">
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Establecimientos */}
+          <Route
+            path="/establecimientos"
+            element={
+              <ProtectedRoute permission="view-establecimientos">
+                <EstablishmentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Crear Establecimientos */}
+          <Route
+            path="/establecimientos/nuevo"
+            element={
+              <ProtectedRoute permission="crear-establecimiento">
+                <EstablecimientoDetallePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Editar Establecimientos */}
+          <Route
+            path="/establecimientos/:id/editar"
+            element={
+              <ProtectedRoute permission="editar-establecimiento">
+                <EstablecimientoDetallePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Visualiza detalle de Establecimientos */}
+          <Route
+            path="/establecimientos/:id"
+            element={
+              <ProtectedRoute permission="detalle-establecimiento">
+                <EstablecimientoDetallePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Clasificaciones */}
+          <Route
+            path="/clasificaciones"
+            element={
+              <ProtectedRoute permission="view-clasificaciones">
+                <ClassificationsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/clasificaciones/nueva"
+            element={
+              <ProtectedRoute permission="create-clasificaciones">
+                <NuevaClasificacionPage />
+              </ProtectedRoute>
             }
           />
           <Route
-            path="/encuesta/:token"
+            path="/clasificaciones/:id"
             element={
-              <PublicRoute>
-                <PublicCuestionarioPage />
-              </PublicRoute>
-            } 
+              <ProtectedRoute permission="detalle-clasificaciones">
+                <ClasificacionDetallePage />
+              </ProtectedRoute>
+            }
           />
 
+          {/* Mapa de Riesgo */}
+          <Route
+            path="/mapa-riesgo"
+            element={
+              <ProtectedRoute permission="view-mapa-riesgo">
+                <MapaRiesgoPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/unauthorized" element={<Unauthorized />} />
+          {/* Funciones */}
+          <Route
+            path="/funciones"
+            element={
+              <ProtectedRoute permission="view-funciones">
+                <FuncionesPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Subfunciones */}
+          <Route
+            path="/subfunciones"
+            element={
+              <ProtectedRoute permission="view-subfunciones">
+                <SubfuncionesPage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Rutas protegidas */}
-          <Route element={<ProtectedLayout />}>
-            {/* Dashboard (sin permiso específico, solo autenticado) */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute permission="view-dashboard">
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+          <Route
+            path="/subfunciones/nueva"
+            element={
+              <ProtectedRoute permission="agregar-subfunciones">
+                <SubfuncionDetallePage />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Usuarios */}
-            <Route
-              path="/users"
-              element={
-                <ProtectedRoute permission="view-users">
-                  <UsersPage />
-                </ProtectedRoute>
-              }
-            />
+          <Route
+            path="/subfunciones/:id"
+            element={
+              <ProtectedRoute permission="detalle-subfunciones">
+                <SubfuncionDetallePage />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Establecimientos */}
-            <Route
-              path="/establecimientos"
-              element={
-                <ProtectedRoute permission="view-establecimientos">
-                  <EstablishmentsPage />
-                </ProtectedRoute>
-              }
-            />
+          <Route
+            path="/subfunciones/:id/editar"
+            element={
+              <ProtectedRoute permission="edit-subfunciones">
+                <SubfuncionDetallePage />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Crear Establecimientos */}
-            <Route
-              path="/establecimientos/nuevo"
-              element={
-                <ProtectedRoute permission="crear-establecimiento">
-                  <EstablecimientoDetallePage />
-                </ProtectedRoute>
-              }
-            />
+          {/* Actividades Económicas */}
+          <Route
+            path="/actividades-economicas"
+            element={
+              <ProtectedRoute permission="view-actividades">
+                <ActividadesEconomicasPage />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Editar Establecimientos */}
-            <Route
-              path="/establecimientos/:id/editar"
-              element={
-                <ProtectedRoute permission="editar-establecimiento">
-                  <EstablecimientoDetallePage />
-                </ProtectedRoute>
-              }
-            />
+          {/* Roles */}
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute permission="view-roles">
+                <RolesPage />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Visualiza detalle de Establecimientos */}
-            <Route
-              path="/establecimientos/:id"
-              element={
-                <ProtectedRoute permission="detalle-establecimiento" >
-                  <EstablecimientoDetallePage />
-                </ProtectedRoute>
-              }
-            />
+          <Route
+            path="/roles/nuevo"
+            element={
+              <ProtectedRoute permission="create-roles">
+                <RolFormPage />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Clasificaciones */}
-            <Route
-              path="/clasificaciones"
-              element={
-                <ProtectedRoute permission="view-clasificaciones">
-                  <ClassificationsPage />
-                </ProtectedRoute>
-              }
-            />
+          <Route
+            path="/roles/:id/editar"
+            element={
+              <ProtectedRoute permission="edit-roles">
+                <RolFormPage />
+              </ProtectedRoute>
+            }
+          />
 
-            <Route
-              path="/clasificaciones/nueva"
-              element={
-                <ProtectedRoute permission="create-clasificaciones">
-                  <NuevaClasificacionPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/clasificaciones/:id"
-              element={
-                <ProtectedRoute permission="detalle-clasificaciones">
-                  <ClasificacionDetallePage />
-                </ProtectedRoute>
-              }
-            />
+          {/* Permisos */}
+          <Route
+            path="/permisos"
+            element={
+              <ProtectedRoute permission="view-permisos">
+                <PermisosPage />
+              </ProtectedRoute>
+            }
+          />
 
-            { /* Mapa de Riesgo */}
-            <Route
-              path="/mapa-riesgo"
-              element={
-                <ProtectedRoute permission="view-mapa-riesgo">
-                  <MapaRiesgoPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Funciones */}
-            <Route
-              path="/funciones"
-              element={
-                <ProtectedRoute permission="view-funciones">
-                  <FuncionesPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* Subfunciones */}
-            <Route
-              path="/subfunciones"
-              element={
-                <ProtectedRoute permission="view-subfunciones">
-                  <SubfuncionesPage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/subfunciones/nueva"
-              element={
-                <ProtectedRoute permission="agregar-subfunciones">
-                  <SubfuncionDetallePage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/subfunciones/:id"
-              element={
-                <ProtectedRoute permission="detalle-subfunciones">
-                  <SubfuncionDetallePage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/subfunciones/:id/editar"
-              element={
-                <ProtectedRoute permission="edit-subfunciones">
-                  <SubfuncionDetallePage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Actividades Económicas */}
-            <Route
-              path="/actividades-economicas"
-              element={
-                <ProtectedRoute permission="view-actividades">
-                  <ActividadesEconomicasPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Roles */}
-            <Route
-              path="/roles"
-              element={
-                <ProtectedRoute permission="view-roles">
-                  <RolesPage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/roles/nuevo"
-              element={
-                <ProtectedRoute permission="create-roles">
-                  <RolFormPage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/roles/:id/editar"
-              element={
-                <ProtectedRoute permission="edit-roles">
-                  <RolFormPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Permisos */}
-            <Route
-              path="/permisos"
-              element={
-                <ProtectedRoute permission="view-permisos">
-                  <PermisosPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Redirección por defecto */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+          {/* Redirección por defecto */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

@@ -2,25 +2,44 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { User as UserIcon, Plus, Edit, Trash2, RotateCcw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
 import UserModal from "../components/UserModal";
-import CustomTable from "../components/CustomTable"; // Importar el nuevo componente
+import CustomTable from "../components/CustomTable";
+import ConfirmModal from "../components/ConfirmModal";
+import { useNotification } from "../hooks/useNotification";
+import { useConfirmModal } from "../hooks/useConfirmModal";
 
 export default function UsersPage() {
   const { api } = useAuth();
-  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState("");
 
-  // Modal
+  // Notificaciones
+  const { 
+    showSuccess, 
+    showError, 
+    showLoading, 
+    showApiError,
+    dismissToast,
+    withLoading 
+  } = useNotification();
+
+  // 👇 Modal de confirmación - RENOMBRADO para evitar conflictos
+  const { 
+    isOpen: isConfirmOpen, 
+    config: confirmConfig, 
+    showConfirm, 
+    closeModal: closeConfirmModal 
+  } = useConfirmModal();
+
+  // Modal de usuario
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Formulario — ahora con roles como array
+  // Formulario
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -38,6 +57,10 @@ export default function UsersPage() {
     } catch (err) {
       console.error("Error al cargar usuarios:", err);
       setError("No se pudieron cargar los usuarios.");
+      showError("Error al cargar usuarios", {
+        description: "No se pudieron cargar los usuarios.",
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -69,13 +92,13 @@ export default function UsersPage() {
       email: user.email,
       password: "",
       password_confirmation: "",
-      roles: user.roles ? user.roles.map(r => r.name) : [],
+      roles: user.roles ? user.roles.map((r) => r.name) : [],
     });
     setFormError("");
     setIsModalOpen(true);
   };
 
-  // Cerrar modal
+  // Cerrar modal de usuario
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentUser(null);
@@ -92,136 +115,161 @@ export default function UsersPage() {
   // Guardar (crear o editar)
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormError("");
-
+    const toastId = showLoading(
+      currentUser ? "Actualizando usuario..." : "Creando usuario..."
+    );
+    
     try {
       if (currentUser) {
         await api.put(`/users/${currentUser.id}`, formData);
+        showSuccess("Usuario actualizado correctamente", { id: toastId });
       } else {
         await api.post("/users", formData);
+        showSuccess("Usuario creado correctamente", { id: toastId });
       }
       closeModal();
       fetchUsers();
     } catch (err) {
       console.error("Error al guardar usuario:", err);
-      if (err.response?.data?.errors) {
-        const firstError = Object.values(err.response.data.errors)[0][0];
-        setFormError(firstError);
-      } else if (err.response?.data?.message) {
-        setFormError(err.response.data.message);
-      } else {
-        setFormError("Error desconocido. Intente nuevamente.");
-      }
+      dismissToast(toastId);
+      showApiError(err, "Error al guardar usuario");
     }
   };
 
-  // Eliminar
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este usuario?")) return;
-
-    try {
-      await api.delete(`/users/${id}`);
-      fetchUsers();
-    } catch (err) {
-      console.error("Error al eliminar usuario:", err);
-      alert("No se pudo eliminar el usuario.");
-    }
+  // 🗑️ Eliminar con modal de confirmación
+  const handleDelete = (user) => {
+    showConfirm({
+      title: "Eliminar Usuario",
+      message: `¿Estás seguro de eliminar al usuario "${user.name}"? Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.delete(`/users/${user.id}`),
+            {
+              loading: "Eliminando usuario...",
+              success: "Usuario eliminado correctamente",
+              error: "No se pudo eliminar el usuario",
+            }
+          );
+          fetchUsers();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // Restaurar
-  const handleRestore = async (id) => {
-    if (!window.confirm("¿Estás seguro de restaurar este usuario?")) return;
-
-    try {
-      await api.post(`/users/${id}/restore`);
-      fetchUsers();
-    } catch (err) {
-      console.error("Error al restaurar usuario:", err);
-      alert("No se pudo restaurar el usuario.");
-    }
+  // ♻️ Restaurar con modal de confirmación
+  const handleRestore = (user) => {
+    showConfirm({
+      title: "Restaurar Usuario",
+      message: `¿Deseas restaurar al usuario "${user.name}"? Volverá a estar activo en el sistema.`,
+      confirmText: "Sí, restaurar",
+      cancelText: "Cancelar",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.post(`/users/${user.id}/restore`),
+            {
+              loading: "Restaurando usuario...",
+              success: "Usuario restaurado correctamente",
+              error: "No se pudo restaurar el usuario",
+            }
+          );
+          fetchUsers();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // Mostrar roles del usuario (todos, separados por coma)
+  // Mostrar roles del usuario
   const getRolesList = (user) => {
     if (user.roles && user.roles.length > 0) {
-      return user.roles.map(r => r.name).join(", ");
+      return user.roles.map((r) => r.name).join(", ");
     }
     return "Sin rol";
   };
 
-  // Definir columnas para la tabla personalizada
-  const columns = useMemo(() => [
-    {
-      header: 'Nombre',
-      accessorKey: 'name',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
-          <span className="text-sm font-medium text-gray-900">
-            {row.original.name}
+  // Definir columnas para la tabla
+  const columns = useMemo(
+    () => [
+      {
+        header: "Nombre",
+        accessorKey: "name",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
+            <span className="text-sm font-medium text-gray-900">
+              {row.original.name}
+            </span>
+          </div>
+        ),
+      },
+      {
+        header: "Email",
+        accessorKey: "email",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-500">{row.original.email}</span>
+        ),
+      },
+      {
+        header: "Rol(es)",
+        accessorKey: "roles",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-900">
+            {getRolesList(row.original)}
           </span>
-        </div>
-      ),
-    },
-    {
-      header: 'Email',
-      accessorKey: 'email',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-500">
-          {row.original.email}
-        </span>
-      ),
-    },
-    {
-      header: 'Rol(es)',
-      accessorKey: 'roles',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-900">
-          {getRolesList(row.original)}
-        </span>
-      ),
-    },
-    {
-      header: 'Estado',
-      accessorKey: 'estado',
-      cell: ({ row }) => (
-        <StatusBadge status={row.original.estado} size="sm" />
-      ),
-    },
-    {
-      header: 'Acciones',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          {row.original.estado ? (
-            <>
+        ),
+      },
+      {
+        header: "Estado",
+        accessorKey: "estado",
+        cell: ({ row }) => (
+          <StatusBadge status={row.original.estado} size="sm" />
+        ),
+      },
+      {
+        header: "Acciones",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            {row.original.estado ? (
+              <>
+                <button
+                  onClick={() => handleEdit(row.original)}
+                  className="text-blue-600 hover:text-blue-900 mr-3 p-1"
+                  title="Editar"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(row.original)}
+                  className="text-red-600 hover:text-red-900 p-1"
+                  title="Eliminar"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : (
               <button
-                onClick={() => handleEdit(row.original)}
-                className="text-blue-600 hover:text-blue-900 mr-3 p-1"
-                title="Editar"
+                onClick={() => handleRestore(row.original)}
+                className="text-green-600 hover:text-green-900 p-1"
+                title="Restaurar"
               >
-                <Edit size={16} />
+                <RotateCcw size={16} />
               </button>
-              <button
-                onClick={() => handleDelete(row.original.id)}
-                className="text-red-600 hover:text-red-900 p-1"
-                title="Eliminar"
-              >
-                <Trash2 size={16} />
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => handleRestore(row.original.id)}
-              className="text-green-600 hover:text-green-900 p-1"
-              title="Restaurar"
-            >
-              <RotateCcw size={16} />
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ], []);
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   // Componente para vista móvil - Card
   const UserCard = ({ user }) => (
@@ -232,10 +280,18 @@ export default function UsersPage() {
           <div>
             <h3 className="font-medium text-gray-900">{user.name}</h3>
             <p className="text-sm text-gray-500">{user.email}</p>
-            <p className="text-xs text-gray-400 mt-1">Rol(es): {getRolesList(user)}</p>
           </div>
         </div>
         <StatusBadge status={user.estado} size="sm" />
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-500">Rol(es):</span>
+          <span className="font-medium max-w-[180px] truncate">
+            {getRolesList(user)}
+          </span>
+        </div>
       </div>
 
       <div className="flex justify-end mt-4 space-x-2">
@@ -249,7 +305,7 @@ export default function UsersPage() {
               <Edit size={16} />
             </button>
             <button
-              onClick={() => handleDelete(user.id)}
+              onClick={() => handleDelete(user)}
               className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-full transition-colors"
               title="Eliminar"
             >
@@ -258,7 +314,7 @@ export default function UsersPage() {
           </>
         ) : (
           <button
-            onClick={() => handleRestore(user.id)}
+            onClick={() => handleRestore(user)}
             className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
             title="Restaurar"
           >
@@ -305,17 +361,14 @@ export default function UsersPage() {
             )}
           </div>
 
-          {/* Vista escritorio - Tabla personalizada con CustomTable */}
+          {/* Vista escritorio - Tabla */}
           <div className="hidden md:block">
-            <CustomTable 
-              data={users} 
-              columns={columns} 
-              searchable={true}
-            />
+            <CustomTable data={users} columns={columns} searchable={true} />
           </div>
         </>
       )}
 
+      {/* Modal de Usuario */}
       <UserModal
         isOpen={isModalOpen}
         onClose={closeModal}
@@ -324,6 +377,18 @@ export default function UsersPage() {
         formData={formData}
         setFormData={setFormData}
         formError={formError}
+      />
+
+      {/* 👇 Modal de Confirmación - CON NOMBRES RENOMBRADOS */}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
       />
     </div>
   );

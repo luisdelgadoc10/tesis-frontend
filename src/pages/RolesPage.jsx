@@ -6,6 +6,9 @@ import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
 import CustomTable from "../components/CustomTable";
+import ConfirmModal from "../components/ConfirmModal";
+import { useNotification } from "../hooks/useNotification";
+import { useConfirmModal } from "../hooks/useConfirmModal";
 
 export default function RolesPage() {
   const { api } = useAuth();
@@ -13,6 +16,17 @@ export default function RolesPage() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Notificaciones
+  const { showSuccess, showError, withLoading } = useNotification();
+
+  // Modal de confirmación
+  const {
+    isOpen: isConfirmOpen,
+    config: confirmConfig,
+    showConfirm,
+    closeModal: closeConfirmModal,
+  } = useConfirmModal();
 
   // Cargar roles
   const fetchRoles = async () => {
@@ -23,6 +37,10 @@ export default function RolesPage() {
     } catch (err) {
       console.error("Error al cargar roles:", err);
       setError("No se pudieron cargar los roles.");
+      showError("Error al cargar roles", {
+        description: "No se pudieron cargar los roles.",
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -42,138 +60,181 @@ export default function RolesPage() {
     navigate(`/roles/${id}/editar`);
   };
 
-  // Eliminar (soft delete)
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este rol?")) return;
-
-    try {
-      await api.delete(`/roles/${id}`);
-      fetchRoles();
-    } catch (err) {
-      console.error("Error al eliminar rol:", err);
-      alert("No se pudo eliminar el rol.");
-    }
+  // Eliminar con modal de confirmación
+  const handleDelete = (role) => {
+    showConfirm({
+      title: "Eliminar Rol",
+      message: `¿Estás seguro de eliminar el rol "${role.name}"? Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await withLoading(api.delete(`/roles/${role.id}`), {
+            loading: "Eliminando rol...",
+            success: "Rol eliminado correctamente",
+            error: "No se pudo eliminar el rol",
+          });
+          fetchRoles();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // Restaurar
-  const handleRestore = async (id) => {
-    if (!window.confirm("¿Estás seguro de restaurar este rol?")) return;
-
-    try {
-      await api.patch(`/roles/${id}/restore`);
-      fetchRoles();
-    } catch (err) {
-      console.error("Error al restaurar rol:", err);
-      alert("No se pudo restaurar el rol.");
-    }
+  // Restaurar con modal de confirmación
+  const handleRestore = (role) => {
+    showConfirm({
+      title: "Restaurar Rol",
+      message: `¿Deseas restaurar el rol "${role.name}"? Volverá a estar disponible en el sistema.`,
+      confirmText: "Sí, restaurar",
+      cancelText: "Cancelar",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          await withLoading(api.patch(`/roles/${role.id}/restore`), {
+            loading: "Restaurando rol...",
+            success: "Rol restaurado correctamente",
+            error: "No se pudo restaurar el rol",
+          });
+          fetchRoles();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // Activar
-  const handleActivate = async (id) => {
-    if (!window.confirm("¿Estás seguro de activar este rol?")) return;
-
-    try {
-      await api.patch(`/roles/${id}/activate`);
-      fetchRoles();
-    } catch (err) {
-      console.error("Error al activar rol:", err);
-      alert("No se pudo activar el rol.");
-    }
+  // Activar con modal de confirmación
+  const handleActivate = (role) => {
+    showConfirm({
+      title: "Activar Rol",
+      message: `¿Estás seguro de activar el rol "${role.name}"?`,
+      confirmText: "Sí, activar",
+      cancelText: "Cancelar",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          await withLoading(api.patch(`/roles/${role.id}/activate`), {
+            loading: "Activando rol...",
+            success: "Rol activado correctamente",
+            error: "No se pudo activar el rol",
+          });
+          fetchRoles();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // Desactivar
-  const handleDeactivate = async (id) => {
-    if (!window.confirm("¿Estás seguro de desactivar este rol?")) return;
-
-    try {
-      await api.patch(`/roles/${id}/deactivate`);
-      fetchRoles();
-    } catch (err) {
-      console.error("Error al desactivar rol:", err);
-      alert("No se pudo desactivar el rol.");
-    }
+  // Desactivar con modal de confirmación
+  const handleDeactivate = (role) => {
+    showConfirm({
+      title: "Desactivar Rol",
+      message: `¿Estás seguro de desactivar el rol "${role.name}"? Los usuarios con este rol no podrán acceder a sus funciones.`,
+      confirmText: "Sí, desactivar",
+      cancelText: "Cancelar",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await withLoading(api.patch(`/roles/${role.id}/deactivate`), {
+            loading: "Desactivando rol...",
+            success: "Rol desactivado correctamente",
+            error: "No se pudo desactivar el rol",
+          });
+          fetchRoles();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
   // Definir columnas para la tabla personalizada
-  const columns = useMemo(() => [
-    {
-      header: 'Nombre',
-      accessorKey: 'name',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <Shield className="h-5 w-5 text-gray-400 mr-2" />
-          <span className="text-sm font-medium text-gray-900">
-            {row.original.name}
+  const columns = useMemo(
+    () => [
+      {
+        header: "Nombre",
+        accessorKey: "name",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            <Shield className="h-5 w-5 text-gray-400 mr-2" />
+            <span className="text-sm font-medium text-gray-900">
+              {row.original.name}
+            </span>
+          </div>
+        ),
+      },
+      {
+        header: "Descripción",
+        accessorKey: "descripcion",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-500">
+            {row.original.descripcion || "—"}
           </span>
-        </div>
-      ),
-    },
-    {
-      header: 'Descripción',
-      accessorKey: 'descripcion',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-500">
-          {row.original.descripcion || "—"}
-        </span>
-      ),
-    },
-    {
-      header: 'Estado',
-      accessorKey: 'estado',
-      cell: ({ row }) => (
-        <StatusBadge status={row.original.estado} size="sm" />
-      ),
-    },
-    {
-      header: 'Acciones',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          {row.original.estado ? (
-            <>
-              <button
-                onClick={() => handleEdit(row.original.id)}
-                className="text-blue-600 hover:text-blue-900 mr-3 p-1"
-                title="Editar"
-              >
-                <Edit size={16} />
-              </button>
-              <button
-                onClick={() => handleDeactivate(row.original.id)}
-                className="text-yellow-600 hover:text-yellow-900 mr-3 p-1"
-                title="Desactivar"
-              >
-                <ToggleLeft size={16} />
-              </button>
-              <button
-                onClick={() => handleDelete(row.original.id)}
-                className="text-red-600 hover:text-red-900 p-1"
-                title="Eliminar"
-              >
-                <Trash2 size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => handleActivate(row.original.id)}
-                className="text-green-600 hover:text-green-900 mr-3 p-1"
-                title="Activar"
-              >
-                <ToggleRight size={16} />
-              </button>
-              <button
-                onClick={() => handleRestore(row.original.id)}
-                className="text-gray-600 hover:text-gray-900 p-1"
-                title="Restaurar"
-              >
-                <RotateCcw size={16} />
-              </button>
-            </>
-          )}
-        </div>
-      ),
-    },
-  ], []);
+        ),
+      },
+      {
+        header: "Estado",
+        accessorKey: "estado",
+        cell: ({ row }) => (
+          <StatusBadge status={row.original.estado} size="sm" />
+        ),
+      },
+      {
+        header: "Acciones",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            {row.original.estado ? (
+              <>
+                <button
+                  onClick={() => handleEdit(row.original.id)}
+                  className="text-blue-600 hover:text-blue-900 mr-3 p-1"
+                  title="Editar"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDeactivate(row.original)}
+                  className="text-yellow-600 hover:text-yellow-900 mr-3 p-1"
+                  title="Desactivar"
+                >
+                  <ToggleLeft size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(row.original)}
+                  className="text-red-600 hover:text-red-900 p-1"
+                  title="Eliminar"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleActivate(row.original)}
+                  className="text-green-600 hover:text-green-900 mr-3 p-1"
+                  title="Activar"
+                >
+                  <ToggleRight size={16} />
+                </button>
+                <button
+                  onClick={() => handleRestore(row.original)}
+                  className="text-gray-600 hover:text-gray-900 p-1"
+                  title="Restaurar"
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </>
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   // Componente para vista móvil - Card
   const RoleCard = ({ role }) => (
@@ -183,7 +244,9 @@ export default function RolesPage() {
           <Shield className="h-5 w-5 text-gray-400 mr-2" />
           <div>
             <h3 className="font-medium text-gray-900">{role.name}</h3>
-            <p className="text-sm text-gray-500">{role.descripcion || "Sin descripción"}</p>
+            <p className="text-sm text-gray-500">
+              {role.descripcion || "Sin descripción"}
+            </p>
           </div>
         </div>
         <StatusBadge status={role.estado} size="sm" />
@@ -200,14 +263,14 @@ export default function RolesPage() {
               <Edit size={16} />
             </button>
             <button
-              onClick={() => handleDeactivate(role.id)}
+              onClick={() => handleDeactivate(role)}
               className="p-2 text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded-full transition-colors"
               title="Desactivar"
             >
               <ToggleLeft size={16} />
             </button>
             <button
-              onClick={() => handleDelete(role.id)}
+              onClick={() => handleDelete(role)}
               className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-full transition-colors"
               title="Eliminar"
             >
@@ -217,14 +280,14 @@ export default function RolesPage() {
         ) : (
           <>
             <button
-              onClick={() => handleActivate(role.id)}
+              onClick={() => handleActivate(role)}
               className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
               title="Activar"
             >
               <ToggleRight size={16} />
             </button>
             <button
-              onClick={() => handleRestore(role.id)}
+              onClick={() => handleRestore(role)}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-full transition-colors"
               title="Restaurar"
             >
@@ -274,14 +337,22 @@ export default function RolesPage() {
 
           {/* Vista escritorio - Tabla personalizada con CustomTable */}
           <div className="hidden md:block">
-            <CustomTable 
-              data={roles} 
-              columns={columns} 
-              searchable={true}
-            />
+            <CustomTable data={roles} columns={columns} searchable={true} />
           </div>
         </>
       )}
+
+      {/* Modal de Confirmación */}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
+      />
     </div>
   );
 }

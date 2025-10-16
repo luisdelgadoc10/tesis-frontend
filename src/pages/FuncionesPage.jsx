@@ -1,11 +1,15 @@
 // src/pages/FuncionesPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Settings2, Plus, Edit, Trash2, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
 import FuncionModal from "../components/FuncionModal";
+import ConfirmModal from "../components/ConfirmModal";
+import { useNotification } from "../hooks/useNotification";
+import { useConfirmModal } from "../hooks/useConfirmModal";
+import CustomTable from "../components/CustomTable"; // Importar el nuevo componente
 
 export default function FuncionesPage() {
   const { api } = useAuth();
@@ -15,7 +19,25 @@ export default function FuncionesPage() {
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState("");
 
-  // Modal
+  // Notificaciones
+  const {
+    showSuccess,
+    showError,
+    showLoading,
+    dismissToast,
+    showApiError,
+    withLoading,
+  } = useNotification();
+
+  // Modal de confirmación
+  const {
+    isOpen: isConfirmOpen,
+    config: confirmConfig,
+    showConfirm,
+    closeModal: closeConfirmModal,
+  } = useConfirmModal();
+
+  // Modal de función
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentFuncion, setCurrentFuncion] = useState(null);
 
@@ -28,11 +50,15 @@ export default function FuncionesPage() {
   const fetchFunciones = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/funciones"); // ← LISTA TODAS (activas + inactivas)
+      const { data } = await api.get("/funciones");
       setFunciones(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       console.error("Error al cargar funciones:", err);
       setError("No se pudieron cargar las funciones.");
+      showError("Error al cargar funciones", {
+        description: "No se pudieron cargar las funciones.",
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -77,16 +103,26 @@ export default function FuncionesPage() {
     e.preventDefault();
     setFormError("");
 
+    const toastId = showLoading(
+      currentFuncion ? "Actualizando función..." : "Creando función..."
+    );
+
     try {
       if (currentFuncion) {
         await api.put(`/funciones/${currentFuncion.id}`, formData);
+        showSuccess("Función actualizada correctamente", { id: toastId });
       } else {
         await api.post("/funciones", formData);
+        showSuccess("Función creada correctamente", { id: toastId });
       }
       closeModal();
       fetchFunciones();
     } catch (err) {
       console.error("Error al guardar función:", err);
+      dismissToast(toastId);
+      showApiError(err, "Error al guardar función");
+
+      // También mostrar en el formulario
       if (err.response?.data?.errors) {
         const firstError = Object.values(err.response.data.errors)[0][0];
         setFormError(firstError);
@@ -98,31 +134,107 @@ export default function FuncionesPage() {
     }
   };
 
-  // Eliminar (soft delete)
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar esta función?")) return;
-
-    try {
-      await api.delete(`/funciones/${id}`);
-      fetchFunciones();
-    } catch (err) {
-      console.error("Error al eliminar función:", err);
-      alert("No se pudo eliminar la función.");
-    }
+  // Eliminar con modal de confirmación
+  const handleDelete = (funcion) => {
+    showConfirm({
+      title: "Eliminar Función",
+      message: `¿Estás seguro de eliminar la función "${funcion.nombre}"? Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await withLoading(api.delete(`/funciones/${funcion.id}`), {
+            loading: "Eliminando función...",
+            success: "Función eliminada correctamente",
+            error: "No se pudo eliminar la función",
+          });
+          fetchFunciones();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // ✅ RESTAURAR → AHORA USA POST (según tu ruta)
-  const handleRestore = async (id) => {
-    if (!window.confirm("¿Estás seguro de restaurar esta función?")) return;
-
-    try {
-      await api.post(`/funciones/${id}/restore`); // ← ¡CORREGIDO A POST!
-      fetchFunciones();
-    } catch (err) {
-      console.error("Error al restaurar función:", err);
-      alert("No se pudo restaurar la función.");
-    }
+  // Restaurar con modal de confirmación
+  const handleRestore = (funcion) => {
+    showConfirm({
+      title: "Restaurar Función",
+      message: `¿Deseas restaurar la función "${funcion.nombre}"? Volverá a estar activa en el sistema.`,
+      confirmText: "Sí, restaurar",
+      cancelText: "Cancelar",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          await withLoading(api.post(`/funciones/${funcion.id}/restore`), {
+            loading: "Restaurando función...",
+            success: "Función restaurada correctamente",
+            error: "No se pudo restaurar la función",
+          });
+          fetchFunciones();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
+
+  // Definir columnas para la tabla personalizada
+  const columns = useMemo(() => [
+    {
+      header: 'Nombre',
+      accessorKey: 'nombre',
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          <Settings2 className="h-5 w-5 text-gray-400 mr-2" />
+          <span className="text-sm font-medium text-gray-900">
+            {row.original.nombre || "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      header: 'Estado',
+      accessorKey: 'estado',
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.estado} size="sm" />
+      ),
+    },
+    {
+      header: 'Acciones',
+      cell: ({ row }) => (
+        <div className="flex items-center space-x-2">
+          {row.original.estado ? (
+            <>
+              <button
+                onClick={() => handleEdit(row.original)}
+                className="text-blue-600 hover:text-blue-900 p-1"
+                title="Editar"
+              >
+                <Edit size={16} />
+              </button>
+              <button
+                onClick={() => handleDelete(row.original)}
+                className="text-red-600 hover:text-red-900 p-1"
+                title="Eliminar"
+              >
+                <Trash2 size={16} />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleRestore(row.original)}
+              className="text-green-600 hover:text-green-900 p-1"
+              title="Restaurar"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ], []);
 
   // Componente para vista móvil - Card
   const FuncionCard = ({ funcion }) => (
@@ -148,7 +260,7 @@ export default function FuncionesPage() {
               <Edit size={16} />
             </button>
             <button
-              onClick={() => handleDelete(funcion.id)}
+              onClick={() => handleDelete(funcion)}
               className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-full transition-colors"
               title="Eliminar"
             >
@@ -157,7 +269,7 @@ export default function FuncionesPage() {
           </>
         ) : (
           <button
-            onClick={() => handleRestore(funcion.id)}
+            onClick={() => handleRestore(funcion)}
             className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
             title="Restaurar"
           >
@@ -198,91 +310,27 @@ export default function FuncionesPage() {
             ) : (
               <div className="space-y-4">
                 {funciones.map((funcion) => (
-                  <FuncionCard key={funcion.id} funcion={funcion} />
+                  <FuncionCard 
+                    key={funcion.id} 
+                    funcion={funcion} 
+                  />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Vista escritorio - Tabla con scroll horizontal */}
-          <div className="hidden md:block overflow-x-auto">
-            <div className="bg-white rounded-lg shadow overflow-hidden border min-w-full">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nombre
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {funciones.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="3"
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        No hay funciones disponibles.
-                      </td>
-                    </tr>
-                  ) : (
-                    funciones.map((funcion) => (
-                      <tr key={funcion.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <Settings2 className="h-5 w-5 text-gray-400 mr-2" />
-                            <span className="text-sm font-medium text-gray-900">
-                              {funcion.nombre}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <StatusBadge status={funcion.estado} size="sm" />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {funcion.estado ? (
-                            <>
-                              <button
-                                onClick={() => handleEdit(funcion)}
-                                className="text-blue-600 hover:text-blue-900 mr-3 p-1"
-                                title="Editar"
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(funcion.id)}
-                                className="text-red-600 hover:text-red-900 p-1"
-                                title="Eliminar"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => handleRestore(funcion.id)}
-                              className="text-green-600 hover:text-green-900 p-1"
-                              title="Restaurar"
-                            >
-                              <RotateCcw size={16} />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+          {/* Vista escritorio - Tabla personalizada con CustomTable */}
+          <div className="hidden md:block">
+            <CustomTable 
+              data={funciones} 
+              columns={columns} 
+              searchable={true}
+            />
           </div>
         </>
       )}
 
+      {/* Modal de Función */}
       <FuncionModal
         isOpen={isModalOpen}
         onClose={closeModal}
@@ -291,6 +339,18 @@ export default function FuncionesPage() {
         formData={formData}
         setFormData={setFormData}
         formError={formError}
+      />
+
+      {/* Modal de Confirmación */}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
       />
     </div>
   );
