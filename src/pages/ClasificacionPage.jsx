@@ -133,7 +133,7 @@ export default function ClasificacionesPage() {
     }
 
     // Obtener token de encuesta (intentos con varios campos posibles)
-    const token = clasificacion.token_encuesta ; // fallback a id si no hay token
+    const token = clasificacion.token_encuesta; // fallback a id si no hay token
 
     try {
       const { data } = await api.post(`/send-survey`, {
@@ -427,6 +427,13 @@ export default function ClasificacionesPage() {
               title="Enviar por WhatsApp"
             >
               <Send size={16} />
+            </button>
+            <button
+              onClick={() => handleSendSurvey(clasificacion)}
+              className="p-2 text-teal-600 hover:text-teal-900 hover:bg-teal-50 rounded-full transition-colors"
+              title="Enviar encuesta por WhatsApp"
+            >
+              <MessageSquareMore size={16} />
             </button>
             <button
               onClick={() => handleDelete(clasificacion.id)}
