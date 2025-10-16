@@ -67,10 +67,44 @@ export default function ClasificacionesPage() {
   };
 
   const handleReport = (id) => {
-    const backendUrl = import.meta.env.VITE_API_URL.replace("/api", ""); 
+    const backendUrl = import.meta.env.VITE_API_URL.replace("/api", "");
     // 🔹 quitamos "/api" porque la ruta del PDF no está bajo /api
 
     window.open(`${backendUrl}/clasificaciones/${id}/pdf`, "_blank");
+  };
+
+  // Enviar reporte por WhatsApp usando el teléfono del establecimiento
+  const handleSendWssp = async (clasificacion) => {
+    let telefono = clasificacion.establecimiento?.telefono;
+
+    if (!telefono) {
+      alert(
+        "❌ No se encontró un número de teléfono para este establecimiento."
+      );
+      return;
+    }
+
+    // Normalizamos el número (quitamos espacios y agregamos +51 si no lo tiene)
+    telefono = telefono.toString().replace(/\s+/g, "");
+    if (!telefono.startsWith("+51")) {
+      telefono = `+51${telefono}`;
+    }
+
+    try {
+      const { data } = await api.post(`/send-report/${clasificacion.id}`, {
+        telefono,
+      });
+      if (data.success) {
+        alert(
+          `✅ El reporte se envió correctamente a ${telefono} por WhatsApp.`
+        );
+      } else {
+        alert("❌ No se pudo enviar el reporte.");
+      }
+    } catch (err) {
+      console.error("Error al enviar por WhatsApp:", err);
+      alert("❌ Error al enviar el reporte por WhatsApp.");
+    }
   };
 
   // Convertir el nivel de riesgo al formato que espera RiskBadge
@@ -141,7 +175,7 @@ export default function ClasificacionesPage() {
     if (confianza === undefined || confianza === null) {
       return "N/A";
     }
-    return confianza.toFixed(2) + '%';
+    return confianza.toFixed(2) + "%";
   };
 
   // Obtener el tiempo de procesamiento en ms
@@ -150,120 +184,131 @@ export default function ClasificacionesPage() {
     if (tiempoMs === undefined || tiempoMs === null) {
       return "N/A";
     }
-    return tiempoMs.toFixed(2) + ' ms';
+    return tiempoMs.toFixed(2) + " ms";
   };
 
   // Definir columnas para la tabla personalizada
-  const columns = useMemo(() => [
-    {
-      header: 'Establecimiento',
-      accessorKey: 'establecimiento',
-      cell: ({ row }) => (
-        <div className="text-sm">
-          <div className="font-medium text-gray-900">
-            {row.original.establecimiento?.nombre_comercial || "—"}
+  const columns = useMemo(
+    () => [
+      {
+        header: "Establecimiento",
+        accessorKey: "establecimiento",
+        cell: ({ row }) => (
+          <div className="text-sm">
+            <div className="font-medium text-gray-900">
+              {row.original.establecimiento?.nombre_comercial || "—"}
+            </div>
+            <div className="text-gray-500">
+              {row.original.establecimiento?.ruc || ""}
+            </div>
           </div>
-          <div className="text-gray-500">
-            {row.original.establecimiento?.ruc || ""}
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: 'Función',
-      accessorKey: 'funcion.nombre',
-      cell: ({ row }) => (
-        <div className="text-sm text-gray-900">
-          {row.original.funcion?.nombre || "—"}
-        </div>
-      ),
-    },
-    {
-      header: 'Subfunción',
-      accessorKey: 'subfuncion',
-      cell: ({ row }) => (
-        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-          {getSubfuncion(row.original)}
-        </span>
-      ),
-    },
-    {
-      header: 'Riesgo Final',
-      accessorKey: 'riesgo_final',
-      cell: ({ row }) => {
-        const riesgoFinal = getRiesgoFinal(row.original);
-        return riesgoFinal !== "N/A" ? (
-          <RiskBadge
-            level={convertRiesgoLevel(riesgoFinal)}
-            size="xs"
-            variant="solid"
-          />
-        ) : (
-          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-            N/A
-          </span>
-        );
+        ),
       },
-    },
-    {
-      header: 'Precisión',
-      accessorKey: 'confianza',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-900 font-medium">
-          {getConfianza(row.original)}
-        </span>
-      ),
-    },
-    {
-      header: 'Tiempo (ms)',
-      accessorKey: 'tiempo_ms',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-900">
-          {getTiempoMs(row.original)}
-        </span>
-      ),
-    },
-    {
-      header: 'Acciones',
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          {row.original.estado ? (
-            <>
-              <button
-                onClick={() => handleView(row.original.id)}
-                className="text-blue-600 hover:text-blue-900 mr-3 p-1"
-                title="Ver"
-              >
-                <Eye size={16} />
-              </button>
-              <button
-                onClick={() => handleReport(row.original.id)}
-                className="text-amber-600 hover:text-amber-900 p-1 mr-2"
-                title="Ver reporte PDF"
-              >
-                <FileText size={16} />
-              </button>
-              <button
-                onClick={() => handleDelete(row.original.id)}
-                className="text-red-600 hover:text-red-900 p-1"
-                title="Eliminar"
-              >
-                <Trash2 size={16} />
-              </button>
-            </>
+      {
+        header: "Función",
+        accessorKey: "funcion.nombre",
+        cell: ({ row }) => (
+          <div className="text-sm text-gray-900">
+            {row.original.funcion?.nombre || "—"}
+          </div>
+        ),
+      },
+      {
+        header: "Subfunción",
+        accessorKey: "subfuncion",
+        cell: ({ row }) => (
+          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+            {getSubfuncion(row.original)}
+          </span>
+        ),
+      },
+      {
+        header: "Riesgo Final",
+        accessorKey: "riesgo_final",
+        cell: ({ row }) => {
+          const riesgoFinal = getRiesgoFinal(row.original);
+          return riesgoFinal !== "N/A" ? (
+            <RiskBadge
+              level={convertRiesgoLevel(riesgoFinal)}
+              size="xs"
+              variant="solid"
+            />
           ) : (
-            <button
-              onClick={() => handleRestore(row.original.id)}
-              className="text-green-600 hover:text-green-900 p-1"
-              title="Restaurar"
-            >
-              <RotateCcw size={16} />
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ], []);
+            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+              N/A
+            </span>
+          );
+        },
+      },
+      {
+        header: "Precisión",
+        accessorKey: "confianza",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-900 font-medium">
+            {getConfianza(row.original)}
+          </span>
+        ),
+      },
+      {
+        header: "Tiempo (ms)",
+        accessorKey: "tiempo_ms",
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-900">
+            {getTiempoMs(row.original)}
+          </span>
+        ),
+      },
+      {
+        header: "Acciones",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            {row.original.estado ? (
+              <>
+                <button
+                  onClick={() => handleView(row.original.id)}
+                  className="text-blue-600 hover:text-blue-900 mr-3 p-1"
+                  title="Ver"
+                >
+                  <Eye size={16} />
+                </button>
+                <button
+                  onClick={() => handleReport(row.original.id)}
+                  className="text-amber-600 hover:text-amber-900 p-1 mr-2"
+                  title="Ver reporte PDF"
+                >
+                  <FileText size={16} />
+                </button>
+                <button
+                  onClick={() => handleSendWssp(row.original)}
+                  className="text-green-600 hover:text-green-900 p-1 mr-2"
+                  title="Enviar por WhatsApp"
+                >
+                  <i className="fab fa-whatsapp"></i>{" "}
+                  {/* o icono de lucide si prefieres */}
+                </button>
+                <button
+                  onClick={() => handleDelete(row.original.id)}
+                  className="text-red-600 hover:text-red-900 p-1"
+                  title="Eliminar"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => handleRestore(row.original.id)}
+                className="text-green-600 hover:text-green-900 p-1"
+                title="Restaurar"
+              >
+                <RotateCcw size={16} />
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   // Componente para vista móvil - Card
   const ClasificacionCard = ({ clasificacion }) => (
@@ -274,7 +319,8 @@ export default function ClasificacionesPage() {
             {clasificacion.funcion?.nombre || "Sin función"}
           </h3>
           <p className="text-sm text-gray-500">
-            {clasificacion.establecimiento?.nombre_comercial || "Sin establecimiento"}
+            {clasificacion.establecimiento?.nombre_comercial ||
+              "Sin establecimiento"}
           </p>
         </div>
       </div>
@@ -288,7 +334,10 @@ export default function ClasificacionesPage() {
           <span className="text-gray-500">Riesgo Final:</span>
           <span className="font-medium">
             {getRiesgoFinal(clasificacion) !== "N/A" ? (
-              <RiskBadge level={convertRiesgoLevel(getRiesgoFinal(clasificacion))} size="xs" />
+              <RiskBadge
+                level={convertRiesgoLevel(getRiesgoFinal(clasificacion))}
+                size="xs"
+              />
             ) : (
               "N/A"
             )}
@@ -344,7 +393,9 @@ export default function ClasificacionesPage() {
   return (
     <div className="w-full">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-        <h2 className="text-xl font-medium">Clasificaciones de Establecimientos</h2>
+        <h2 className="text-xl font-medium">
+          Clasificaciones de Establecimientos
+        </h2>
         <Button
           onClick={() => navigate("/clasificaciones/nueva")}
           className="flex items-center gap-2 bg-[#24412f] text-white hover:bg-[#1b2a1f] transition-colors w-full sm:w-auto justify-center"
@@ -371,9 +422,9 @@ export default function ClasificacionesPage() {
             ) : (
               <div className="space-y-4">
                 {clasificaciones.map((clasificacion) => (
-                  <ClasificacionCard 
-                    key={clasificacion.id} 
-                    clasificacion={clasificacion} 
+                  <ClasificacionCard
+                    key={clasificacion.id}
+                    clasificacion={clasificacion}
                   />
                 ))}
               </div>
@@ -382,9 +433,9 @@ export default function ClasificacionesPage() {
 
           {/* Vista escritorio - Tabla personalizada con CustomTable */}
           <div className="hidden md:block">
-            <CustomTable 
-              data={clasificaciones} 
-              columns={columns} 
+            <CustomTable
+              data={clasificaciones}
+              columns={columns}
               searchable={true}
             />
           </div>
