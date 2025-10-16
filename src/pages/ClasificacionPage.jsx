@@ -1,7 +1,15 @@
 // src/pages/ClasificacionesPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
-import { FileText, Plus, Eye, Trash2, RotateCcw, Send } from "lucide-react";
+import {
+  FileText,
+  Plus,
+  Eye,
+  Trash2,
+  RotateCcw,
+  Send,
+  MessageSquareMore,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
@@ -104,6 +112,48 @@ export default function ClasificacionesPage() {
     } catch (err) {
       console.error("Error al enviar por WhatsApp:", err);
       alert("❌ Error al enviar el reporte por WhatsApp.");
+    }
+  };
+
+  // Enviar enlace de encuesta por WhatsApp usando el teléfono del establecimiento
+  const handleSendSurvey = async (clasificacion) => {
+    let telefono = clasificacion.establecimiento?.telefono;
+
+    if (!telefono) {
+      alert(
+        "❌ No se encontró un número de teléfono para este establecimiento."
+      );
+      return;
+    }
+
+    // Normalizar teléfono y agregar +51 si hace falta
+    telefono = telefono.toString().replace(/\s+/g, "");
+    if (!telefono.startsWith("+51")) {
+      telefono = `+51${telefono}`;
+    }
+
+    // Obtener token de encuesta (intentos con varios campos posibles)
+    const token =
+      clasificacion.token ||
+      clasificacion.encuesta_token ||
+      clasificacion.detalle?.token ||
+      clasificacion.id; // fallback a id si no hay token
+
+    try {
+      const { data } = await api.post(`/send-survey`, {
+        phone: telefono,
+        token,
+      });
+
+      if (data?.status === "success") {
+        alert(`✅ Enlace de encuesta enviado a ${telefono}`);
+      } else {
+        console.warn("Respuesta no exitosa:", data);
+        alert("❌ No se pudo enviar el enlace de la encuesta.");
+      }
+    } catch (err) {
+      console.error("Error al enviar encuesta por WhatsApp:", err);
+      alert("❌ Error al enviar enlace de encuesta por WhatsApp.");
     }
   };
 
@@ -286,6 +336,13 @@ export default function ClasificacionesPage() {
                   <Send size={16} />
                 </button>
                 <button
+                  onClick={() => handleSendSurvey(row.original)}
+                  className="text-teal-600 hover:text-teal-900 p-1 mr-2"
+                  title="Enviar encuesta por WhatsApp"
+                >
+                  <MessageSquareMore size={16} />
+                </button>
+                <button
                   onClick={() => handleDelete(row.original.id)}
                   className="text-red-600 hover:text-red-900 p-1"
                   title="Eliminar"
@@ -367,6 +424,13 @@ export default function ClasificacionesPage() {
               title="Ver"
             >
               <Eye size={16} />
+            </button>
+            <button
+              onClick={() => handleSendWssp(clasificacion)}
+              className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
+              title="Enviar por WhatsApp"
+            >
+              <Send size={16} />
             </button>
             <button
               onClick={() => handleDelete(clasificacion.id)}
