@@ -1,7 +1,7 @@
 // src/pages/ClasificacionesPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
-import { FileText, Plus, Eye, Trash2, RotateCcw } from "lucide-react";
+import { FileText, Plus, Eye, Trash2, RotateCcw, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
@@ -283,8 +283,7 @@ export default function ClasificacionesPage() {
                   className="text-green-600 hover:text-green-900 p-1 mr-2"
                   title="Enviar por WhatsApp"
                 >
-                  <i className="fab fa-whatsapp"></i>{" "}
-                  {/* o icono de lucide si prefieres */}
+                  <Send size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(row.original.id)}
