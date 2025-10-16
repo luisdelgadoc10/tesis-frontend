@@ -133,11 +133,7 @@ export default function ClasificacionesPage() {
     }
 
     // Obtener token de encuesta (intentos con varios campos posibles)
-    const token =
-      clasificacion.token ||
-      clasificacion.encuesta_token ||
-      clasificacion.detalle?.token ||
-      clasificacion.id; // fallback a id si no hay token
+    const token = clasificacion.token_encuesta ; // fallback a id si no hay token
 
     try {
       const { data } = await api.post(`/send-survey`, {
