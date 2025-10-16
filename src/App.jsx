@@ -277,6 +277,7 @@ function App() {
 // Nuevo componente para rutas públicas
 function PublicRoute({ children }) {
   const { isAuthenticated, loading, isInitialized } = useAuth();
+  const location = useLocation();
 
   if (!isInitialized || loading) {
     return (
@@ -286,10 +287,14 @@ function PublicRoute({ children }) {
     );
   }
 
-  if (isAuthenticated) {
+  // Rutas que redirigen al dashboard si el usuario ya está logueado
+  const redirectIfAuth = ["/login", "/register"];
+
+  if (isAuthenticated && redirectIfAuth.includes(location.pathname)) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Todas las demás rutas públicas (ej: /encuesta/...) se muestran normalmente
   return children;
 }
 
