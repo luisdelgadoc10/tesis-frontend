@@ -36,6 +36,8 @@ export default function Layout() {
         return "Permisos";
       case "/settings":
         return "Configuración";
+      case "/indicadores":
+        return "Indicadores";
       default:
         return "Panel Administrativo";
     }

@@ -1,31 +1,55 @@
 // src/components/Sidebar.jsx
-import { Home, Users, Store, X, LogOut, Shapes, BriefcaseBusiness, ShieldCheck, FileLock,FolderOpen,FolderInput, MapPinned } from "lucide-react";
+import {
+  Home,
+  Users,
+  Store,
+  X,
+  LogOut,
+  Shapes,
+  BriefcaseBusiness,
+  ShieldCheck,
+  FileLock,
+  FolderOpen,
+  FolderInput,
+  MapPinned,
+} from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
 
 export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
-  const { user, logout, hasPermission } = useAuth(); // ← ¡Añadido hasPermission!
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
 
-  // Definir menú con permisos
-  const menuItems = [
-    { name: "Dashboard", icon: <Home size={18} />, path: "/dashboard", permission: "view-dashboard" },
-    { name: "Usuarios", icon: <Users size={18} />, path: "/users", permission: "view-users" },
-    { name: "Establecimientos", icon: <Store size={18} />, path: "/establecimientos", permission: "view-establecimientos" },
-    { name: "Clasificaciones", icon: <Shapes size={18} />, path: "/clasificaciones", permission: "view-clasificaciones" },
-    { name: "Mapa de Riesgo", icon: <MapPinned size={18} />, path: "/mapa-riesgo", permission: "view-mapa-riesgo" },
-    { name: "Funciones", icon: <FolderOpen size={18} />, path: "/funciones", permission: "view-funciones" },
-    { name: "Subfunciones", icon: <FolderInput size={18} />, path: "/subfunciones", permission: "view-subfunciones" },
-    { name: "Actividades Economicas", icon: <BriefcaseBusiness size={18} />, path: "/actividades-economicas", permission: "view-actividades" },
-    { name: "Roles", icon: <ShieldCheck size={18} />, path: "/roles", permission: "view-roles" },
-    { name: "Permisos", icon: <FileLock size={18} />, path: "/permisos", permission: "view-permisos" },
+  // ✅ Menú agrupado por secciones
+  const menuGroups = [
+    {
+      title: "General",
+      items: [
+        { name: "Dashboard", icon: <Home size={18} />, path: "/dashboard", permission: "view-dashboard" },
+        { name: "Mapa de Riesgo", icon: <MapPinned size={18} />, path: "/mapa-riesgo", permission: "view-mapa-riesgo" },
+      ],
+    },
+    {
+      title: "Gestión",
+      items: [
+        { name: "Usuarios", icon: <Users size={18} />, path: "/users", permission: "view-users" },
+        { name: "Establecimientos", icon: <Store size={18} />, path: "/establecimientos", permission: "view-establecimientos" },
+        { name: "Clasificaciones", icon: <Shapes size={18} />, path: "/clasificaciones", permission: "view-clasificaciones" },
+        { name: "Actividades Económicas", icon: <BriefcaseBusiness size={18} />, path: "/actividades-economicas", permission: "view-actividades" },
+      ],
+    },
+    {
+      title: "Configuración",
+      items: [
+        { name: "Funciones", icon: <FolderOpen size={18} />, path: "/funciones", permission: "view-funciones" },
+        { name: "Subfunciones", icon: <FolderInput size={18} />, path: "/subfunciones", permission: "view-subfunciones" },
+        { name: "Roles", icon: <ShieldCheck size={18} />, path: "/roles", permission: "view-roles" },
+        { name: "Indicadores", icon: <ShieldCheck size={18} />, path: "/indicadores", permission: "view-indicadores" },
+        { name: "Permisos", icon: <FileLock size={18} />, path: "/permisos", permission: "view-permisos" },
+      ],
+    },
   ];
-
-  // Filtrar ítems según permisos
-  const visibleMenuItems = menuItems.filter(item => 
-    !item.permission || hasPermission(item.permission)
-  );
 
   const linkStyles = ({ isActive }) =>
     `flex items-center gap-2 px-3 py-2 my-0.5 rounded-md text-sm font-medium transition-colors w-auto mx-2 ${
@@ -40,26 +64,46 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
     navigate("/login", { replace: true });
   };
 
+  // ✅ Render de los grupos de menú
+  const renderMenu = () => (
+    <div className="flex-1 overflow-y-auto px-1 custom-scroll">
+      {menuGroups.map((group) => {
+        // Filtrar ítems según permisos
+        const visibleItems = group.items.filter(
+          (item) => !item.permission || hasPermission(item.permission)
+        );
+
+        if (visibleItems.length === 0) return null;
+
+        return (
+          <div key={group.title} className="mb-4">
+            <h3 className="text-xs uppercase text-white/60 font-semibold px-3 mb-2">
+              {group.title}
+            </h3>
+            {visibleItems.map((item) => (
+              <NavLink key={item.path} to={item.path} className={linkStyles}>
+                {item.icon}
+                {item.name}
+              </NavLink>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <>
-      {/* Sidebar de escritorio - siempre visible en desktop */}
+      {/* Sidebar de escritorio */}
       <aside className="hidden md:flex md:flex-col md:w-64 bg-gradient-to-b from-[#24412f] to-emerald-700 text-white h-screen sticky top-0">
-        {/* Logo */}
-        <div className="p-4 mb-6">
+        <div className="p-4">
           <Logo />
         </div>
 
-        <nav className="flex flex-col mt-2">
-          {visibleMenuItems.map((item) => (
-            <NavLink key={item.path} to={item.path} className={linkStyles}>
-              {item.icon}
-              {item.name}
-            </NavLink>
-          ))}
-        </nav>
+        {renderMenu()}
 
         {user && (
-          <div className="p-4 border-t border-white/20 mt-auto">
+          <div className="p-4 border-t border-white/20">
             <p className="text-sm mb-2">{user.name}</p>
             <button
               onClick={handleLogout}
@@ -72,45 +116,28 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
         )}
       </aside>
 
-      {/* Sidebar móvil - solo se muestra cuando isMobileOpen es true */}
+      {/* Sidebar móvil */}
       {isMobileOpen && (
         <>
-          {/* Overlay oscuro */}
           <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileOpen(false)}
           />
-
-          {/* Panel móvil */}
-          <aside className="fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-[#24412f] to-emerald-700 text-white flex flex-col p-4 z-50 transform transition-transform duration-300 ease-in-out md:hidden">
-            {/* Logo móvil */}
-            <div className="mb-6">
+          <aside className="fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-[#24412f] to-emerald-700 text-white flex flex-col z-50 transform transition-transform duration-300 ease-in-out md:hidden">
+            <div className="flex items-center justify-between p-4">
               <Logo />
+              <button
+                onClick={() => setIsMobileOpen(false)}
+                className="p-2 bg-white/10 rounded hover:bg-white/20"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <button
-              onClick={() => setIsMobileOpen(false)}
-              className="self-end p-2 mb-4 bg-white/10 rounded text-white hover:bg-white/20"
-            >
-              <X size={20} />
-            </button>
-
-            <nav className="flex flex-col">
-              {visibleMenuItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={linkStyles}
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  {item.icon}
-                  {item.name}
-                </NavLink>
-              ))}
-            </nav>
+            {renderMenu()}
 
             {user && (
-              <div className="mt-auto border-t border-white/20 pt-4">
+              <div className="p-4 border-t border-white/20">
                 <p className="text-sm mb-2">{user.name}</p>
                 <button
                   onClick={handleLogout}
