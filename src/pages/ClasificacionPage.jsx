@@ -14,7 +14,10 @@ import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import StatusBadge from "../components/StatusBadge";
 import RiskBadge from "../components/RiskBadge";
-import CustomTable from "../components/CustomTable"; // Importar el nuevo componente
+import CustomTable from "../components/CustomTable";
+import ConfirmModal from "../components/ConfirmModal";
+import { useNotification } from "../hooks/useNotification";
+import { useConfirmModal } from "../hooks/useConfirmModal";
 
 export default function ClasificacionesPage() {
   const { api } = useAuth();
@@ -22,6 +25,17 @@ export default function ClasificacionesPage() {
   const [clasificaciones, setClasificaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Notificaciones
+  const { showSuccess, showError, showInfo, withLoading } = useNotification();
+
+  // Modal de confirmación
+  const {
+    isOpen: isConfirmOpen,
+    config: confirmConfig,
+    showConfirm,
+    closeModal: closeConfirmModal,
+  } = useConfirmModal();
 
   // Cargar clasificaciones
   const fetchClasificaciones = async () => {
@@ -32,6 +46,10 @@ export default function ClasificacionesPage() {
     } catch (err) {
       console.error("Error al cargar clasificaciones:", err);
       setError("No se pudieron cargar las clasificaciones.");
+      showError("Error al cargar clasificaciones", {
+        description: "No se pudieron cargar las clasificaciones.",
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -46,157 +64,199 @@ export default function ClasificacionesPage() {
     navigate(`/clasificaciones/${id}`);
   };
 
-  // Eliminar
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar esta clasificación?"))
-      return;
+  // Eliminar con modal de confirmación
+  const handleDelete = (clasificacion) => {
+    const nombreEstablecimiento =
+      clasificacion.establecimiento?.nombre_comercial || "esta clasificación";
 
-    try {
-      await api.delete(`/clasificaciones/${id}`);
-      fetchClasificaciones();
-    } catch (err) {
-      console.error("Error al eliminar clasificación:", err);
-      alert("No se pudo eliminar la clasificación.");
-    }
+    showConfirm({
+      title: "Eliminar Clasificación",
+      message: `¿Estás seguro de eliminar la clasificación de "${nombreEstablecimiento}"? Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.delete(`/clasificaciones/${clasificacion.id}`),
+            {
+              loading: "Eliminando clasificación...",
+              success: "Clasificación eliminada correctamente",
+              error: "No se pudo eliminar la clasificación",
+            }
+          );
+          fetchClasificaciones();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
-  // Restaurar
-  const handleRestore = async (id) => {
-    if (!window.confirm("¿Estás seguro de restaurar esta clasificación?"))
-      return;
+  // Restaurar con modal de confirmación
+  const handleRestore = (clasificacion) => {
+    const nombreEstablecimiento =
+      clasificacion.establecimiento?.nombre_comercial || "esta clasificación";
 
-    try {
-      await api.patch(`/clasificaciones/${id}/restore`);
-      fetchClasificaciones();
-    } catch (err) {
-      console.error("Error al restaurar clasificación:", err);
-      alert("No se pudo restaurar la clasificación.");
-    }
+    showConfirm({
+      title: "Restaurar Clasificación",
+      message: `¿Deseas restaurar la clasificación de "${nombreEstablecimiento}"?`,
+      confirmText: "Sí, restaurar",
+      cancelText: "Cancelar",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.patch(`/clasificaciones/${clasificacion.id}/restore`),
+            {
+              loading: "Restaurando clasificación...",
+              success: "Clasificación restaurada correctamente",
+              error: "No se pudo restaurar la clasificación",
+            }
+          );
+          fetchClasificaciones();
+        } catch (err) {
+          // El error ya fue mostrado
+        }
+      },
+    });
   };
 
+  // Ver reporte PDF
   const handleReport = (id) => {
     const backendUrl = import.meta.env.VITE_API_URL.replace("/api", "");
-    // 🔹 quitamos "/api" porque la ruta del PDF no está bajo /api
-
     window.open(`${backendUrl}/clasificaciones/${id}/pdf`, "_blank");
+    showInfo("Abriendo reporte PDF", {
+      description: "El reporte se abrirá en una nueva pestaña",
+      duration: 3000,
+    });
   };
 
-  // Enviar reporte por WhatsApp usando el teléfono del establecimiento
-  // Enviar reporte por WhatsApp usando el teléfono del establecimiento
+  // Enviar reporte por WhatsApp
   const handleSendWssp = async (clasificacion) => {
     let telefono = clasificacion.establecimiento?.telefono;
 
     if (!telefono) {
-      alert(
-        "❌ No se encontró un número de teléfono para este establecimiento."
-      );
+      showError("Teléfono no disponible", {
+        description:
+          "No se encontró un número de teléfono para este establecimiento.",
+        duration: 5000,
+      });
       return;
     }
 
-    // Normalizamos el número (quitamos espacios y agregamos +51 si no lo tiene)
+    // Normalizar teléfono
     telefono = telefono.toString().replace(/\s+/g, "");
     if (!telefono.startsWith("+51")) {
       telefono = `+51${telefono}`;
     }
 
-    try {
-      const { data } = await api.post(`/send-report/${clasificacion.id}`, {
-        telefono,
-      });
-
-      if (data.success) {
-        alert(
-          `✅ El reporte se envió correctamente a ${telefono} por WhatsApp.`
-        );
-      } else {
-        alert("❌ No se pudo enviar el reporte.");
-      }
-    } catch (err) {
-      console.error("Error al enviar por WhatsApp:", err);
-
-      // 🟡 Detectamos si el backend devolvió un 409 (reporte ya enviado)
-      if (err.response?.status === 409) {
-        alert(
-          "⚠️ El reporte ya fue enviado anteriormente y no se volverá a enviar."
-        );
-      } else if (err.response?.status === 422) {
-        alert("⚠️ Datos inválidos. Verifica el número de teléfono.");
-      } else if (err.response?.status === 500) {
-        alert("❌ Error en el servidor al enviar el mensaje.");
-      } else {
-        alert("❌ Error desconocido al enviar el reporte por WhatsApp.");
-      }
-    }
+    showConfirm({
+      title: "Enviar Reporte por WhatsApp",
+      message: `¿Deseas enviar el reporte de clasificación a ${telefono}?`,
+      confirmText: "Sí, enviar",
+      cancelText: "Cancelar",
+      type: "info",
+      onConfirm: async () => {
+        try {
+          await withLoading(
+            api.post(`/send-report/${clasificacion.id}`, { telefono }),
+            {
+              loading: "Enviando reporte por WhatsApp...",
+              success: `Reporte enviado correctamente a ${telefono}`,
+              error: "No se pudo enviar el reporte",
+            }
+          );
+        } catch (err) {
+          // Manejo específico de errores
+          if (err.response?.status === 422) {
+            showError("Datos inválidos", {
+              description: "Verifica el número de teléfono.",
+              duration: 5000,
+            });
+          } else {
+            showError("Error desconocido", {
+              description: "Ocurrió un problema al enviar el reporte.",
+              duration: 5000,
+            });
+          }
+        }
+      },
+    });
   };
 
-  // Enviar enlace de encuesta por WhatsApp usando el teléfono del establecimiento
+  // Enviar encuesta por WhatsApp
   const handleSendSurvey = async (clasificacion) => {
     let telefono = clasificacion.establecimiento?.telefono;
 
     if (!telefono) {
-      alert(
-        "❌ No se encontró un número de teléfono para este establecimiento."
-      );
+      showError("Teléfono no disponible", {
+        description:
+          "No se encontró un número de teléfono para este establecimiento.",
+        duration: 5000,
+      });
       return;
     }
 
-    // Normalizar teléfono y agregar +51 si hace falta
+    // Normalizar teléfono
     telefono = telefono.toString().replace(/\s+/g, "");
     if (!telefono.startsWith("+51")) {
       telefono = `+51${telefono}`;
     }
 
-    // Obtener token de encuesta (intentos con varios campos posibles)
-    const token = clasificacion.token_encuesta; // fallback a id si no hay token
+    const token = clasificacion.token_encuesta;
 
-    try {
-      const { data } = await api.post(`/send-survey`, {
-        phone: telefono,
-        token,
-      });
+    showConfirm({
+      title: "Enviar Encuesta por WhatsApp",
+      message: `¿Deseas enviar el enlace de la encuesta a ${telefono}?`,
+      confirmText: "Sí, enviar",
+      cancelText: "Cancelar",
+      type: "info",
+      onConfirm: async () => {
+        try {
+          const { data } = await api.post(`/send-survey`, {
+            phone: telefono,
+            token,
+          });
 
-      if (data?.status === "success") {
-        alert(`✅ Enlace de encuesta enviado a ${telefono}`);
-      } else {
-        console.warn("Respuesta no exitosa:", data);
-        alert("❌ No se pudo enviar el enlace de la encuesta.");
-      }
-    } catch (err) {
-      console.error("Error al enviar encuesta por WhatsApp:", err);
-      alert("❌ Error al enviar enlace de encuesta por WhatsApp.");
-    }
+          if (data?.status === "success") {
+            showSuccess("Encuesta enviada", {
+              description: `Enlace de encuesta enviado correctamente a ${telefono}`,
+              duration: 4000,
+            });
+          } else {
+            showError("Error al enviar encuesta", {
+              description: "No se pudo enviar el enlace de la encuesta.",
+              duration: 5000,
+            });
+          }
+        } catch (err) {
+          console.error("Error al enviar encuesta:", err);
+          showError("Error al enviar encuesta", {
+            description:
+              "Ocurrió un error al enviar el enlace de la encuesta por WhatsApp.",
+            duration: 5000,
+          });
+        }
+      },
+    });
   };
 
-  // Convertir el nivel de riesgo al formato que espera RiskBadge
+  // Convertir el nivel de riesgo
   const convertRiesgoLevel = (nivel) => {
     if (!nivel) return "bajo";
-
     const nivelLower = nivel.toLowerCase().trim();
-
-    // Mapear exactamente los valores posibles
-    if (nivelLower === "muy alto" || nivelLower === "muy_alto") {
+    if (nivelLower === "muy alto" || nivelLower === "muy_alto")
       return "muy_alto";
-    }
-    if (nivelLower === "alto") {
-      return "alto";
-    }
-    if (nivelLower === "medio") {
-      return "medio";
-    }
-    if (nivelLower === "bajo") {
-      return "bajo";
-    }
-
-    // Si no coincide exactamente, intentar detectar
-    if (nivelLower.includes("muy") && nivelLower.includes("alto")) {
+    if (nivelLower === "alto") return "alto";
+    if (nivelLower === "medio") return "medio";
+    if (nivelLower === "bajo") return "bajo";
+    if (nivelLower.includes("muy") && nivelLower.includes("alto"))
       return "muy_alto";
-    }
-
-    // Por defecto, devolver el nivel tal cual en minúsculas
     return nivelLower;
   };
 
-  // Obtener la subfunción específica según la función (del resultado_modelo)
+  // Obtener la subfunción específica
   const getSubfuncion = (clasificacion) => {
     const resultado = clasificacion.detalle?.resultado_modelo;
     if (!resultado) return "N/A";
@@ -224,30 +284,23 @@ export default function ClasificacionesPage() {
     }
   };
 
-  // Obtener el riesgo_final directo de la columna (ahora es texto)
   const getRiesgoFinal = (clasificacion) => {
     return clasificacion.detalle?.riesgo_final || "N/A";
   };
 
-  // Obtener el valor de confianza del resultado del modelo
   const getConfianza = (clasificacion) => {
     const confianza = clasificacion.detalle?.resultado_modelo?.confianza;
-    if (confianza === undefined || confianza === null) {
-      return "N/A";
-    }
-    return confianza.toFixed(2) + "%";
+    if (confianza === undefined || confianza === null) return "N/A";
+    return confianza + "%";
   };
 
-  // Obtener el tiempo de procesamiento en ms
   const getTiempoMs = (clasificacion) => {
-    const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_ms;
-    if (tiempoMs === undefined || tiempoMs === null) {
-      return "N/A";
-    }
-    return tiempoMs.toFixed(2) + " ms";
+    const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_s;
+    if (tiempoMs === undefined || tiempoMs === null) return "N/A";
+    return tiempoMs.toFixed(2) + " s";
   };
 
-  // Definir columnas para la tabla personalizada
+  // Definir columnas
   const columns = useMemo(
     () => [
       {
@@ -310,8 +363,8 @@ export default function ClasificacionesPage() {
         ),
       },
       {
-        header: "Tiempo (ms)",
-        accessorKey: "tiempo_ms",
+        header: "Tiempo (s)",
+        accessorKey: "tiempo_s",
         cell: ({ row }) => (
           <span className="text-sm text-gray-900">
             {getTiempoMs(row.original)}
@@ -353,7 +406,7 @@ export default function ClasificacionesPage() {
                   <MessageSquareMore size={16} />
                 </button>
                 <button
-                  onClick={() => handleDelete(row.original.id)}
+                  onClick={() => handleDelete(row.original)}
                   className="text-red-600 hover:text-red-900 p-1"
                   title="Eliminar"
                 >
@@ -362,7 +415,7 @@ export default function ClasificacionesPage() {
               </>
             ) : (
               <button
-                onClick={() => handleRestore(row.original.id)}
+                onClick={() => handleRestore(row.original)}
                 className="text-green-600 hover:text-green-900 p-1"
                 title="Restaurar"
               >
@@ -376,7 +429,7 @@ export default function ClasificacionesPage() {
     []
   );
 
-  // Componente para vista móvil - Card
+  // Componente Card para móvil
   const ClasificacionCard = ({ clasificacion }) => (
     <div className="bg-white rounded-lg shadow border p-4 mb-4">
       <div className="flex items-start justify-between mb-3">
@@ -417,12 +470,6 @@ export default function ClasificacionesPage() {
           <span className="text-gray-500">Tiempo (ms):</span>
           <span className="font-medium">{getTiempoMs(clasificacion)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Usuario:</span>
-          <span className="font-medium">
-            {clasificacion.user?.name || "N/A"}
-          </span>
-        </div>
       </div>
 
       <div className="flex justify-end mt-4 space-x-2">
@@ -445,12 +492,12 @@ export default function ClasificacionesPage() {
             <button
               onClick={() => handleSendSurvey(clasificacion)}
               className="p-2 text-teal-600 hover:text-teal-900 hover:bg-teal-50 rounded-full transition-colors"
-              title="Enviar encuesta por WhatsApp"
+              title="Enviar encuesta"
             >
               <MessageSquareMore size={16} />
             </button>
             <button
-              onClick={() => handleDelete(clasificacion.id)}
+              onClick={() => handleDelete(clasificacion)}
               className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-full transition-colors"
               title="Eliminar"
             >
@@ -459,7 +506,7 @@ export default function ClasificacionesPage() {
           </>
         ) : (
           <button
-            onClick={() => handleRestore(clasificacion.id)}
+            onClick={() => handleRestore(clasificacion)}
             className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors"
             title="Restaurar"
           >
@@ -493,7 +540,6 @@ export default function ClasificacionesPage() {
         <div className="text-center py-10">Cargando clasificaciones...</div>
       ) : (
         <>
-          {/* Vista móvil - Cards */}
           <div className="md:hidden">
             {clasificaciones.length === 0 ? (
               <div className="text-center py-10 text-gray-500">
@@ -511,7 +557,6 @@ export default function ClasificacionesPage() {
             )}
           </div>
 
-          {/* Vista escritorio - Tabla personalizada con CustomTable */}
           <div className="hidden md:block">
             <CustomTable
               data={clasificaciones}
@@ -521,6 +566,18 @@ export default function ClasificacionesPage() {
           </div>
         </>
       )}
+
+      {/* Modal de Confirmación */}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
+      />
     </div>
   );
 }

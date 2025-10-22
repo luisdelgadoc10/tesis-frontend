@@ -38,6 +38,8 @@ export default function Layout() {
         return "Configuración";
       case "/indicadores":
         return "Indicadores";
+      case "/satisfaccion":
+        return "Encuesta de Satisfacción";
       default:
         return "Panel Administrativo";
     }

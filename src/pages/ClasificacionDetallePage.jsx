@@ -135,7 +135,7 @@ export default function ClasificacionDetallePage() {
 
   // Obtener el tiempo de procesamiento en ms (igual al de la página de listado)
   const getTiempoMs = (detalle) => {
-    const tiempoMs = detalle?.resultado_modelo?.tiempo_ms;
+    const tiempoMs = detalle?.resultado_modelo?.tiempo_s;
     if (tiempoMs === undefined || tiempoMs === null) {
       return "N/A";
     }

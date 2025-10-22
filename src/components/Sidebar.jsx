@@ -28,12 +28,21 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
       items: [
         { name: "Dashboard", icon: <Home size={18} />, path: "/dashboard", permission: "view-dashboard" },
         { name: "Mapa de Riesgo", icon: <MapPinned size={18} />, path: "/mapa-riesgo", permission: "view-mapa-riesgo" },
+        { name: "Indicadores", icon: <ShieldCheck size={18} />, path: "/indicadores", permission: "view-indicadores" },
+        { name: "Satisfacción", icon: <ShieldCheck size={18} />, path: "/satisfaccion", permission: "view-satisfaccion" },
+      ],
+    },
+    {
+      title: "Acceso",
+      items: [
+        { name: "Usuarios", icon: <Users size={18} />, path: "/users", permission: "view-users" },
+        { name: "Roles", icon: <ShieldCheck size={18} />, path: "/roles", permission: "view-roles" },
+        { name: "Permisos", icon: <FileLock size={18} />, path: "/permisos", permission: "view-permisos" },
       ],
     },
     {
       title: "Gestión",
-      items: [
-        { name: "Usuarios", icon: <Users size={18} />, path: "/users", permission: "view-users" },
+      items: [        
         { name: "Establecimientos", icon: <Store size={18} />, path: "/establecimientos", permission: "view-establecimientos" },
         { name: "Clasificaciones", icon: <Shapes size={18} />, path: "/clasificaciones", permission: "view-clasificaciones" },
         { name: "Actividades Económicas", icon: <BriefcaseBusiness size={18} />, path: "/actividades-economicas", permission: "view-actividades" },
@@ -44,9 +53,6 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
       items: [
         { name: "Funciones", icon: <FolderOpen size={18} />, path: "/funciones", permission: "view-funciones" },
         { name: "Subfunciones", icon: <FolderInput size={18} />, path: "/subfunciones", permission: "view-subfunciones" },
-        { name: "Roles", icon: <ShieldCheck size={18} />, path: "/roles", permission: "view-roles" },
-        { name: "Indicadores", icon: <ShieldCheck size={18} />, path: "/indicadores", permission: "view-indicadores" },
-        { name: "Permisos", icon: <FileLock size={18} />, path: "/permisos", permission: "view-permisos" },
       ],
     },
   ];

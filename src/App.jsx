@@ -33,6 +33,7 @@ import MapaRiesgoPage from "./pages/MapaRiesgoPage";
 import SubfuncionDetallePage from "./pages/SubfuncionDetallePage";
 import RolFormPage from "./pages/RolFormPage";
 import IndicadoresPage from "./pages/IndicadoresPage";
+import ResultadosEncuestaPage from "./pages/ResultadosEncuestaPage";
 
 // Componente interno para proteger rutas (autenticación)
 function ProtectedLayout() {
@@ -196,6 +197,16 @@ function App() {
             element={
               <ProtectedRoute permission="view-indicadores">
                 <IndicadoresPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Indicadores */}
+          <Route
+            path="/satisfaccion"
+            element={
+              <ProtectedRoute permission="view-satisfaccion">
+                <ResultadosEncuestaPage />
               </ProtectedRoute>
             }
           />

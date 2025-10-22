@@ -51,7 +51,7 @@ export default function Dashboard() {
 
   // Promedio de tiempo
   const promedioTiempo =
-    validClas.reduce((sum, c) => sum + (c.detalle?.resultado_modelo?.tiempo_ms || 0), 0) /
+    validClas.reduce((sum, c) => sum + (c.detalle?.resultado_modelo?.tiempo_s || 0), 0) /
     (validClas.length || 1);
 
   // Distribución de riesgos (riesgo_final nombre)
