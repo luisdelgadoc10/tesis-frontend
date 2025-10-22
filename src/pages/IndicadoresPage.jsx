@@ -239,11 +239,11 @@ export default function ClasificacionesPage() {
 
   // Obtener el tiempo de procesamiento en ms
   const getTiempoMs = (clasificacion) => {
-    const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_s;
+    const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_ms;
     if (tiempoMs === undefined || tiempoMs === null) {
       return "N/A";
     }
-    return tiempoMs.toFixed(2) + " s";
+    return tiempoMs.toFixed(2) + " ms";
   };
 
   // Definir columnas para la tabla personalizada
@@ -291,8 +291,8 @@ export default function ClasificacionesPage() {
         ),
       },
       {
-        header: "Tiempo de Clasificación (s)",
-        accessorKey: "tiempo_s",
+        header: "Tiempo de Clasificación (ms)",
+        accessorKey: "tiempo_ms",
         cell: ({ row }) => (
           <span className="text-sm text-gray-900 font-medium">
             {getTiempoMs(row.original)}

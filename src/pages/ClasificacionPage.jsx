@@ -295,9 +295,9 @@ export default function ClasificacionesPage() {
   };
 
   const getTiempoMs = (clasificacion) => {
-    const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_s;
+    const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_ms;
     if (tiempoMs === undefined || tiempoMs === null) return "N/A";
-    return tiempoMs.toFixed(2) + " s";
+    return tiempoMs.toFixed(2) + " ms";
   };
 
   // Definir columnas
@@ -363,8 +363,8 @@ export default function ClasificacionesPage() {
         ),
       },
       {
-        header: "Tiempo (s)",
-        accessorKey: "tiempo_s",
+        header: "Tiempo (ms)",
+        accessorKey: "tiempo_ms",
         cell: ({ row }) => (
           <span className="text-sm text-gray-900">
             {getTiempoMs(row.original)}
