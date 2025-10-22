@@ -130,7 +130,7 @@ export default function ClasificacionDetallePage() {
     if (confianza === undefined || confianza === null) {
       return "N/A";
     }
-    return confianza.toFixed(2) + '%';
+    return confianza + "%";
   };
 
   // Obtener el tiempo de procesamiento en ms (igual al de la página de listado)
