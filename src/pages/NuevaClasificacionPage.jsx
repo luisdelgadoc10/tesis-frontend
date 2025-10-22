@@ -234,7 +234,7 @@ export default function NuevaClasificacionPage() {
         return <FormularioEducacion datos={datosEspecificos} onChange={handleDatoEspecifico} />;
       case "INDUSTRIAL":
         return <FormularioIndustrial datos={datosEspecificos} onChange={handleDatoEspecifico} />;
-      case "OFICINAS":
+      case "OFICINAS ADMINISTRATIVAS":
         return <FormularioOficinas datos={datosEspecificos} onChange={handleDatoEspecifico} />;
       case "COMERCIO":
         return <FormularioComercio datos={datosEspecificos} onChange={handleDatoEspecifico} />;
