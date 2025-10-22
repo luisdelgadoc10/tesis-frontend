@@ -12,6 +12,8 @@ import {
   FolderOpen,
   FolderInput,
   MapPinned,
+  FileChartColumnIncreasing,
+  SmilePlus,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -28,8 +30,8 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }) {
       items: [
         { name: "Dashboard", icon: <Home size={18} />, path: "/dashboard", permission: "view-dashboard" },
         { name: "Mapa de Riesgo", icon: <MapPinned size={18} />, path: "/mapa-riesgo", permission: "view-mapa-riesgo" },
-        { name: "Indicadores", icon: <ShieldCheck size={18} />, path: "/indicadores", permission: "view-indicadores" },
-        { name: "Satisfacción", icon: <ShieldCheck size={18} />, path: "/satisfaccion", permission: "view-satisfaccion" },
+        { name: "Indicadores", icon: <FileChartColumnIncreasing size={18} />, path: "/indicadores", permission: "view-indicadores" },
+        { name: "Satisfacción", icon: <SmilePlus size={18} />, path: "/satisfaccion", permission: "view-satisfaccion" },
       ],
     },
     {
