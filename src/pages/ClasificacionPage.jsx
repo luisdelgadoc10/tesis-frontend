@@ -297,7 +297,8 @@ export default function ClasificacionesPage() {
   const getTiempoMs = (clasificacion) => {
     const tiempoMs = clasificacion.detalle?.resultado_modelo?.tiempo_s;
     if (tiempoMs === undefined || tiempoMs === null) return "N/A";
-    return tiempoMs.toFixed(2) + " s";
+    return tiempoMs + ' s';
+    //return tiempoMs.toFixed(2) + ' s';
   };
 
   // Definir columnas

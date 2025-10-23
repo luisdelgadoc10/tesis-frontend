@@ -243,7 +243,8 @@ export default function ClasificacionesPage() {
     if (tiempoMs === undefined || tiempoMs === null) {
       return "N/A";
     }
-    return tiempoMs.toFixed(2) + " ms";
+    return tiempoMs + ' s';
+    //return tiempoMs.toFixed(2) + ' s';
   };
 
   // Definir columnas para la tabla personalizada
