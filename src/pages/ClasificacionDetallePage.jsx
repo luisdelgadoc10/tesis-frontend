@@ -139,7 +139,8 @@ export default function ClasificacionDetallePage() {
     if (tiempoMs === undefined || tiempoMs === null) {
       return "N/A";
     }
-    return tiempoMs.toFixed(2) + ' s';
+    return tiempoMs + ' s';
+    //return tiempoMs.toFixed(2) + ' s';
   };
 
   // Formatear JSON para mostrar
