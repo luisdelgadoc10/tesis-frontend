@@ -275,7 +275,7 @@ export default function ClasificacionesPage() {
         return resultado.subfuncion_educacion || "N/A";
       case "INDUSTRIAL":
         return resultado.subfuncion_industrial || "N/A";
-      case "OFICINAS":
+      case "OFICINAS ADMINISTRATIVAS":
         return resultado.subfuncion_oficinas || "N/A";
       case "ALMACEN":
         return resultado.subfuncion_almacen || "N/A";

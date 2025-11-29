@@ -1,7 +1,19 @@
 import FormularioBase from "./FormularioBase";
 
+/**
+ * Formulario para establecimientos del sector "Salud".
+ * 
+ * Contiene pasos relacionados con:
+ * - Nivel y tipo de establecimiento
+ * - Capacidad e infraestructura
+ * - Características del servicio
+ * - Servicios y especialidades médicas
+ * - Infraestructura física
+ * - Personal médico
+ */
 export default function FormularioSalud({ datos, onChange }) {
   const pasos = [
+    // 🏷️ Paso 1: Nivel y Tipo de Establecimiento
     {
       titulo: "Nivel y Tipo de Establecimiento",
       campos: [
@@ -30,6 +42,8 @@ export default function FormularioSalud({ datos, onChange }) {
         },
       ],
     },
+
+    // 🏗️ Paso 2: Capacidad e Infraestructura
     {
       titulo: "Capacidad e Infraestructura",
       campos: [
@@ -49,6 +63,8 @@ export default function FormularioSalud({ datos, onChange }) {
         },
       ],
     },
+
+    // 🩺 Paso 3: Características del Establecimiento
     {
       titulo: "Características del Establecimiento",
       campos: [
@@ -66,6 +82,8 @@ export default function FormularioSalud({ datos, onChange }) {
         },
       ],
     },
+
+    // ⚕️ Paso 4: Servicios y Especialidades
     {
       titulo: "Servicios y Especialidades",
       campos: [
@@ -94,6 +112,8 @@ export default function FormularioSalud({ datos, onChange }) {
         },
       ],
     },
+
+    // 🧱 Paso 5: Infraestructura Física
     {
       titulo: "Infraestructura Física",
       campos: [
@@ -114,6 +134,8 @@ export default function FormularioSalud({ datos, onChange }) {
         },
       ],
     },
+
+    // 👩‍⚕️ Paso 6: Personal Médico
     {
       titulo: "Personal Médico",
       campos: [
